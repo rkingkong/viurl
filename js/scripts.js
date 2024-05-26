@@ -1,5 +1,81 @@
 document.addEventListener('DOMContentLoaded', function() {
-    // Home Feed functionality
+    const natural = require('natural');
+    const tokenizer = new natural.WordTokenizer();
+    const positiveWords = ['happy', 'great', 'excellent', 'good', 'positive'];
+    const negativeWords = ['sad', 'bad', 'terrible', 'awful', 'negative'];
+    const forbiddenWords = ['badword1', 'badword2', 'inappropriate1', 'inappropriate2']; // Add more as needed
+
+    function analyzeSentiment(text) {
+        const tokens = tokenizer.tokenize(text);
+        let sentimentScore = 0;
+
+        tokens.forEach(token => {
+            if (positiveWords.includes(token.toLowerCase())) {
+                sentimentScore += 1;
+            } else if (negativeWords.includes(token.toLowerCase())) {
+                sentimentScore -= 1;
+            }
+        });
+
+        return sentimentScore;
+    }
+
+    function moderateContent(text) {
+        const tokens = tokenizer.tokenize(text);
+        for (let token of tokens) {
+            if (forbiddenWords.includes(token.toLowerCase())) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    function rewardPost(interactionType, sentimentScore) {
+        let tokens = 0;
+        let tokenType = '';
+
+        if (interactionType === 'like') {
+            tokens = sentimentScore > 0 ? 10 : 5; // Reward more for positive sentiment
+            tokenType = 'likeToken';
+        } else if (interactionType === 'share') {
+            tokens = sentimentScore > 0 ? 15 : 10; // Reward more for positive sentiment
+            tokenType = 'shareToken';
+        } else if (interactionType === 'dislike') {
+            tokens = sentimentScore < 0 ? 5 : 2; // Reward more for negative sentiment
+            tokenType = 'dislikeToken';
+        }
+
+        console.log(`Rewarding ${tokens} ${tokenType}s`);
+        try {
+            const receipt = await rewardUser(userAddress, tokenType, tokens);
+            console.log('Transaction receipt:', receipt);
+            alert(`You earned ${tokens} ${tokenType}s!`);
+        } catch (error) {
+            console.error('Error rewarding user:', error);
+            alert('Error processing reward transaction.');
+        }
+        // Here, integrate with blockchain API to mint/transfer tokens
+        return { tokens, tokenType };
+    }
+    feed.addEventListener('click', async function(e) {
+        if (e.target.classList.contains('like') || e.target.classList.contains('comment') || e.target.classList.contains('share')) {
+            const postContent = e.target.closest('.post').querySelector('.content p').innerText;
+            const interactionType = e.target.classList.contains('like') ? 'like' : e.target.classList.contains('share') ? 'share' : 'dislike';
+            const userAddress = '0xUserAddress'; // Replace with actual user address
+    
+            const sentimentScore = analyzeSentiment(postContent);
+            const isContentAllowed = moderateContent(postContent);
+    
+            if (isContentAllowed) {
+                await rewardPost(interactionType, sentimentScore, userAddress);
+            } else {
+                alert('This post contains inappropriate content and cannot be rewarded.');
+            }
+    
+            e.target.innerText = interactionType.charAt(0).toUpperCase() + interactionType.slice(1) + 'd';
+        }
+    });
+
     const postButton = document.getElementById('postButton');
     const postContent = document.getElementById('postContent');
     const feed = document.getElementById('feed');
@@ -9,21 +85,28 @@ document.addEventListener('DOMContentLoaded', function() {
         postButton.addEventListener('click', function() {
             const content = postContent.value;
             if (content.trim() !== '') {
-                const postElement = document.createElement('div');
-                postElement.className = 'post';
-                postElement.innerHTML = `
-                    <div class="avatar"></div>
-                    <div class="content">
-                        <p>${content}</p>
-                        <div class="post-actions">
-                            <button class="like">Like</button>
-                            <button class="comment">Comment</button>
-                            <button class="share">Share</button>
+                const sentimentScore = analyzeSentiment(content);
+                const isContentAllowed = moderateContent(content);
+
+                if (isContentAllowed) {
+                    const postElement = document.createElement('div');
+                    postElement.className = 'post';
+                    postElement.innerHTML = `
+                        <div class="avatar"></div>
+                        <div class="content">
+                            <p>${content}</p>
+                            <div class="post-actions">
+                                <button class="like">Like</button>
+                                <button class="comment">Comment</button>
+                                <button class="share">Share</button>
+                            </div>
                         </div>
-                    </div>
-                `;
-                feed.prepend(postElement);
-                postContent.value = '';
+                    `;
+                    feed.prepend(postElement);
+                    postContent.value = '';
+                } else {
+                    alert('This post contains inappropriate content and cannot be posted.');
+                }
             } else {
                 alert('Post content cannot be empty.');
             }
@@ -31,17 +114,23 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     feed.addEventListener('click', function(e) {
-        if (e.target.classList.contains('like')) {
-            e.target.innerText = 'Liked';
+        if (e.target.classList.contains('like') || e.target.classList.contains('comment') || e.target.classList.contains('share')) {
+            const postContent = e.target.closest('.post').querySelector('.content p').innerText;
+            const interactionType = e.target.classList.contains('like') ? 'like' : e.target.classList.contains('share') ? 'share' : 'dislike';
+
+            const sentimentScore = analyzeSentiment(postContent);
+            const isContentAllowed = moderateContent(postContent);
+
+            if (isContentAllowed) {
+                const { tokens, tokenType } = rewardPost(interactionType, sentimentScore);
+                alert(`You earned ${tokens} ${tokenType}s!`);
+            } else {
+                alert('This post contains inappropriate content and cannot be rewarded.');
+            }
+
+            e.target.innerText = interactionType.charAt(0).toUpperCase() + interactionType.slice(1) + 'd';
         }
     });
-
-    if (addPostButton) {
-        addPostButton.addEventListener('click', function() {
-            // Redirect to post creation page or open post creation modal
-            window.location.href = 'create_post.html';
-        });
-    }
 
     // Profile Page functionality
     const profileFeed = document.getElementById('profile-feed');
