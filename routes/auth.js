@@ -4,6 +4,45 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
+// Import KYC and 2FA services
+const kycService = require('../services/kycService');
+const twoFactor = require('node-2fa');
+
+// User registration
+router.post('/register', async (req, res) => {
+    const { username, email, password, kycDocument } = req.body;
+  
+    // Perform KYC verification
+    const kycResult = await kycService.verifyDocument(kycDocument);
+    if (!kycResult.success) {
+      return res.status(400).json({ message: 'KYC verification failed' });
+    }
+  
+    // Hash the password
+    const hashedPassword = await bcrypt.hash(password, 10);
+  
+    // Create new user
+    const newUser = new User({
+      username,
+      email,
+      password: hashedPassword,
+      kycVerified: true
+    });
+  
+    try {
+      await newUser.save();
+      // Generate 2FA secret
+      const newSecret = twoFactor.generateSecret({ name: 'VIURL', account: email });
+      newUser.twoFactorSecret = newSecret.secret;
+      await newUser.save();
+      res.json({ message: 'User registered successfully', twoFactorQR: newSecret.qr });
+    } catch (err) {
+      res.status(500).json({ message: 'Error registering user' });
+    }
+  });
+  
+  module.exports = router;
+
 router.post('/register', async (req, res) => {
     const { username, email, password } = req.body;
 

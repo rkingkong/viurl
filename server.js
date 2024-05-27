@@ -9,9 +9,12 @@ const jwt = require('jsonwebtoken');
 const authRoutes = require('./routes/auth');
 const postRoutes = require('./routes/posts');
 const notificationRoutes = require('./routes/notifications');
-
+const path = require('path');
 const app = express();
 const port = process.env.PORT || 3000;
+const paymentRoutes = require('./routes/payments');
+const cardRoutes = require('./routes/cards');
+
 
 // Middleware
 app.use(helmet());
@@ -31,10 +34,18 @@ app.use('/api/auth', authRoutes);
 app.use('/api/posts', postRoutes);
 app.use('/api/notifications', notificationRoutes);
 
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
+
 // Database Connection
 mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true })
     .then(() => console.log('MongoDB connected'))
     .catch(err => console.error('MongoDB connection error:', err));
+
+    app.listen(PORT, () => {
+        console.log(`Server running on port ${PORT}`);
+      });
 
 // Error Handling Middleware
 app.use((err, req, res, next) => {
@@ -45,3 +56,12 @@ app.use((err, req, res, next) => {
 app.listen(port, () => {
     console.log(`Server running at http://localhost:${port}`);
 });
+
+// payment 
+
+app.use('/payments', paymentRoutes);
+
+
+//cards
+
+app.use('/cards', cardRoutes);
