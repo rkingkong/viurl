@@ -1,67 +1,64 @@
 require('dotenv').config();
 const express = require('express');
-const bodyParser = require('body-parser');
-const mongoose = require('mongoose');
 const cors = require('cors');
 const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
-const jwt = require('jsonwebtoken');
-const authRoutes = require('./routes/auth');
-const postRoutes = require('./routes/posts');
-const notificationRoutes = require('./routes/notifications');
+const mongoose = require('mongoose');
 const path = require('path');
-const app = express();
-const port = process.env.PORT || 3000;
-const paymentRoutes = require('./routes/payments');
-const cardRoutes = require('./routes/cards');
 
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+// Connect to MongoDB
+mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/viurlDB', {
+  useNewUrlParser: true,
+  useUnifiedTopology: true
+}).then(() => {
+  console.log('✅ MongoDB connected');
+}).catch(err => {
+  console.log('⚠️  MongoDB not connected (optional for now):', err.message);
+});
 
 // Middleware
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginEmbedderPolicy: false
+}));
 app.use(cors());
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+app.use(express.json());
+app.use(express.static('public'));
 
-// Rate Limiting
-const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100 // Limit each IP to 100 requests per windowMs
-});
-app.use(limiter);
+// Import routes
+const authRoutes = require('./src/routes/auth');
 
-// Routes
+// API Routes
 app.use('/api/auth', authRoutes);
-app.use('/api/posts', postRoutes);
-app.use('/api/notifications', notificationRoutes);
 
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'OK',
+    message: 'Viurl API is running',
+    version: '1.0.0',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Serve landing page
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
+  res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// Database Connection
-mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true })
-    .then(() => console.log('MongoDB connected'))
-    .catch(err => console.error('MongoDB connection error:', err));
-
-    app.listen(PORT, () => {
-        console.log(`Server running on port ${PORT}`);
-      });
-
-// Error Handling Middleware
+// Error handling
 app.use((err, req, res, next) => {
-    console.error(err.stack);
-    res.status(500).send('Something broke!');
+  console.error(err.stack);
+  res.status(500).json({ error: 'Something went wrong!' });
 });
 
-app.listen(port, () => {
-    console.log(`Server running at http://localhost:${port}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`
+    ╔══════════════════════════════════════╗
+    ║         VIURL SERVER v1.0.0          ║
+    ║   🚀 Server running on port ${PORT}     ║
+    ║   🌐 https://viurl.com               ║
+    ╚══════════════════════════════════════╝
+  `);
 });
-
-// payment 
-
-app.use('/payments', paymentRoutes);
-
-
-//cards
-
-app.use('/cards', cardRoutes);
