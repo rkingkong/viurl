@@ -3,7 +3,6 @@ module.exports = {
     {
       name: 'viurl-backend',
       script: './server.js',
-      cwd: '/var/www/viurl',
       instances: 1,
       autorestart: true,
       watch: false,
@@ -11,20 +10,11 @@ module.exports = {
       env: {
         NODE_ENV: 'production',
         PORT: 5000
-      }
-    },
-    {
-      name: 'viurl-frontend',
-      script: 'npm',
-      args: 'run preview',
-      cwd: '/var/www/viurl/client',
-      instances: 1,
-      autorestart: true,
-      watch: false,
-      env: {
-        NODE_ENV: 'production',
-        PORT: 4173
-      }
+      },
+      error_file: './logs/err.log',
+      out_file: './logs/out.log',
+      log_file: './logs/combined.log',
+      time: true
     }
   ]
 };

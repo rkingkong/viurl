@@ -1,32 +1,38 @@
-import { useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAppSelector, useAppDispatch } from './useRedux';
-import { login, register, logout } from '../store/slices/authSlice';
+import { useAppDispatch } from './useRedux';
+import { loginUser, registerUser, logout } from '../store/slices/authSlice';
+import type { LoginCredentials, RegisterCredentials } from '../types';
 
 export const useAuth = () => {
-  const navigate = useNavigate();
   const dispatch = useAppDispatch();
-  const { user, isAuthenticated, loading, error } = useAppSelector(
-    (state) => state.auth
-  );
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const signIn = async (email: string, password: string) => {
+  const login = async (credentials: LoginCredentials) => {
+    setLoading(true);
+    setError(null);
     try {
-      await dispatch(login({ email, password })).unwrap();
+      await dispatch(loginUser(credentials)).unwrap();
       navigate('/');
-      return { success: true };
-    } catch (error) {
-      return { success: false, error };
+    } catch (err: any) {
+      setError(err.message || 'Login failed');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const signUp = async (email: string, password: string, username: string) => {
+  const register = async (credentials: RegisterCredentials) => {
+    setLoading(true);
+    setError(null);
     try {
-      await dispatch(register({ email, password, username })).unwrap();
+      await dispatch(registerUser(credentials)).unwrap();
       navigate('/');
-      return { success: true };
-    } catch (error) {
-      return { success: false, error };
+    } catch (err: any) {
+      setError(err.message || 'Registration failed');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -36,25 +42,10 @@ export const useAuth = () => {
   };
 
   return {
-    user,
-    isAuthenticated,
-    loading,
-    error,
-    signIn,
-    signUp,
+    login,
+    register,
     signOut,
+    loading,
+    error
   };
-};
-
-export const useRequireAuth = () => {
-  const navigate = useNavigate();
-  const { isAuthenticated } = useAppSelector((state) => state.auth);
-
-  useEffect(() => {
-    if (!isAuthenticated) {
-      navigate('/login');
-    }
-  }, [isAuthenticated, navigate]);
-
-  return isAuthenticated;
 };

@@ -1,74 +1,42 @@
-import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import axios from 'axios';
-
-interface Post {
-  id: string;
-  author: {
-    id: string;
-    username: string;
-    avatar: string;
-  };
-  content: string;
-  timestamp: string;
-  likes: number;
-  retweets: number;
-  comments: number;
-  verifications: number;
-  isVerified: boolean;
-  hasLiked: boolean;
-  hasRetweeted: boolean;
-  hasVerified: boolean;
-}
-
-interface FeedState {
-  posts: Post[];
-  loading: boolean;
-  error: string | null;
-  hasMore: boolean;
-  page: number;
-}
+import { createSlice, createAsyncThunk, type PayloadAction } from '@reduxjs/toolkit';
+import type { FeedState, Post } from '../../types';
 
 const initialState: FeedState = {
   posts: [],
   loading: false,
   error: null,
   hasMore: true,
-  page: 1,
+  page: 1
 };
 
-// Fetch posts
-export const fetchPosts = createAsyncThunk(
-  'feed/fetchPosts',
+export const fetchFeed = createAsyncThunk(
+  'feed/fetchFeed',
   async (page: number = 1) => {
-    const response = await axios.get(`/api/posts?page=${page}`);
-    return response.data;
+    const token = localStorage.getItem('token');
+    const response = await fetch(`/api/posts/feed?page=${page}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    if (!response.ok) throw new Error('Failed to fetch feed');
+    return response.json();
   }
 );
 
-// Create post
 export const createPost = createAsyncThunk(
   'feed/createPost',
   async (content: string) => {
-    const response = await axios.post('/api/posts', { content });
-    return response.data;
-  }
-);
-
-// Like post
-export const likePost = createAsyncThunk(
-  'feed/likePost',
-  async (postId: string) => {
-    const response = await axios.post(`/api/posts/${postId}/like`);
-    return { postId, ...response.data };
-  }
-);
-
-// Verify post
-export const verifyPost = createAsyncThunk(
-  'feed/verifyPost',
-  async (postId: string) => {
-    const response = await axios.post(`/api/posts/${postId}/verify`);
-    return { postId, ...response.data };
+    const token = localStorage.getItem('token');
+    const response = await fetch('/api/posts', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ content })
+    });
+    if (!response.ok) throw new Error('Failed to create post');
+    return response.json();
   }
 );
 
@@ -76,55 +44,36 @@ const feedSlice = createSlice({
   name: 'feed',
   initialState,
   reducers: {
+    addPost: (state, action: PayloadAction<Post>) => {
+      state.posts.unshift(action.payload);
+    },
     clearFeed: (state) => {
       state.posts = [];
       state.page = 1;
       state.hasMore = true;
-    },
+    }
   },
   extraReducers: (builder) => {
     builder
-      // Fetch posts
-      .addCase(fetchPosts.pending, (state) => {
+      .addCase(fetchFeed.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
-      .addCase(fetchPosts.fulfilled, (state, action) => {
+      .addCase(fetchFeed.fulfilled, (state, action) => {
         state.loading = false;
-        if (action.payload.page === 1) {
-          state.posts = action.payload.posts;
-        } else {
-          state.posts = [...state.posts, ...action.payload.posts];
-        }
+        state.posts = [...state.posts, ...action.payload.posts];
         state.hasMore = action.payload.hasMore;
         state.page = action.payload.page;
       })
-      .addCase(fetchPosts.rejected, (state, action) => {
+      .addCase(fetchFeed.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.error.message || 'Failed to fetch posts';
+        state.error = action.error.message || 'Failed to load feed';
       })
-      // Create post
       .addCase(createPost.fulfilled, (state, action) => {
-        state.posts = [action.payload, ...state.posts];
-      })
-      // Like post
-      .addCase(likePost.fulfilled, (state, action) => {
-        const post = state.posts.find(p => p.id === action.payload.postId);
-        if (post) {
-          post.hasLiked = !post.hasLiked;
-          post.likes = action.payload.likes;
-        }
-      })
-      // Verify post
-      .addCase(verifyPost.fulfilled, (state, action) => {
-        const post = state.posts.find(p => p.id === action.payload.postId);
-        if (post) {
-          post.hasVerified = !post.hasVerified;
-          post.verifications = action.payload.verifications;
-        }
+        state.posts.unshift(action.payload);
       });
-  },
+  }
 });
 
-export const { clearFeed } = feedSlice.actions;
+export const { addPost, clearFeed } = feedSlice.actions;
 export default feedSlice.reducer;

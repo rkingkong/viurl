@@ -1,67 +1,42 @@
-import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import axios from 'axios';
-
-interface UserProfile {
-  id: string;
-  username: string;
-  email: string;
-  bio: string;
-  avatar: string;
-  banner: string;
-  reputation: number;
-  tokens: {
-    VTOKENS: number;
-    likes: number;
-    dislikes: number;
-    shares: number;
-  };
-  following: number;
-  followers: number;
-  postsCount: number;
-  joinedDate: string;
-  isFollowing: boolean;
-}
-
-interface UserState {
-  profile: UserProfile | null;
-  loading: boolean;
-  error: string | null;
-  followers: any[];
-  following: any[];
-}
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import type { UserState, User } from '../../types';
 
 const initialState: UserState = {
+  currentUser: null,
+  darkMode: false,
   profile: null,
   loading: false,
-  error: null,
-  followers: [],
-  following: [],
+  error: null
 };
 
-// Fetch user profile
 export const fetchUserProfile = createAsyncThunk(
   'user/fetchProfile',
   async (username: string) => {
-    const response = await axios.get(`/api/users/${username}`);
-    return response.data;
+    const token = localStorage.getItem('token');
+    const response = await fetch(`/api/users/${username}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    if (!response.ok) throw new Error('Failed to fetch user profile');
+    return response.json();
   }
 );
 
-// Update profile
-export const updateProfile = createAsyncThunk(
+export const updateUserProfile = createAsyncThunk(
   'user/updateProfile',
-  async (data: { bio?: string; avatar?: string; banner?: string }) => {
-    const response = await axios.put('/api/users/profile', data);
-    return response.data;
-  }
-);
-
-// Follow/Unfollow user
-export const toggleFollow = createAsyncThunk(
-  'user/toggleFollow',
-  async (userId: string) => {
-    const response = await axios.post(`/api/users/${userId}/follow`);
-    return response.data;
+  async (updates: Partial<User>) => {
+    const token = localStorage.getItem('token');
+    const response = await fetch('/api/users/profile', {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(updates)
+    });
+    if (!response.ok) throw new Error('Failed to update profile');
+    return response.json();
   }
 );
 
@@ -69,15 +44,15 @@ const userSlice = createSlice({
   name: 'user',
   initialState,
   reducers: {
-    clearProfile: (state) => {
-      state.profile = null;
-      state.followers = [];
-      state.following = [];
+    toggleDarkMode: (state) => {
+      state.darkMode = !state.darkMode;
     },
+    setCurrentUser: (state, action) => {
+      state.currentUser = action.payload;
+    }
   },
   extraReducers: (builder) => {
     builder
-      // Fetch profile
       .addCase(fetchUserProfile.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -88,23 +63,13 @@ const userSlice = createSlice({
       })
       .addCase(fetchUserProfile.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.error.message || 'Failed to fetch profile';
+        state.error = action.error.message || 'Failed to load profile';
       })
-      // Update profile
-      .addCase(updateProfile.fulfilled, (state, action) => {
-        if (state.profile) {
-          state.profile = { ...state.profile, ...action.payload };
-        }
-      })
-      // Toggle follow
-      .addCase(toggleFollow.fulfilled, (state, action) => {
-        if (state.profile) {
-          state.profile.isFollowing = action.payload.isFollowing;
-          state.profile.followers = action.payload.followersCount;
-        }
+      .addCase(updateUserProfile.fulfilled, (state, action) => {
+        state.currentUser = action.payload;
       });
-  },
+  }
 });
 
-export const { clearProfile } = userSlice.actions;
+export const { toggleDarkMode, setCurrentUser } = userSlice.actions;
 export default userSlice.reducer;
