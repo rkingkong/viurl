@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAppDispatch, useAppSelector } from '../hooks/useRedux';
 import { createPost, fetchFeed } from '../store/slices/feedSlice';
 import type { Post } from '../types';
+import './Home.css';
 
 const Home: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -9,7 +10,6 @@ const Home: React.FC = () => {
   const { user } = useAppSelector((state) => state.auth);
   const [postContent, setPostContent] = useState('');
 
-  // Fetch posts on component mount
   useEffect(() => {
     dispatch(fetchFeed(1));
   }, [dispatch]);
@@ -21,35 +21,47 @@ const Home: React.FC = () => {
     }
   };
 
+  const getAvatarUrl = (userData: any) => {
+    if (userData?.profilePicture) return userData.profilePicture;
+    if (userData?.avatar) return userData.avatar;
+    const name = userData?.name || userData?.username || 'User';
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=00ff00&color=000`;
+  };
+
   return (
-    <div className="max-w-2xl mx-auto">
-      <div className="bg-white shadow rounded-lg p-4 mb-4">
-        <div className="flex space-x-3">
+    <div className="home-container">
+      {/* Header */}
+      <header className="home-header">
+        <h1 className="home-title">Home</h1>
+      </header>
+
+      {/* Create Post */}
+      <div className="create-post-container">
+        <div className="create-post-wrapper">
           <img
-            src={user?.avatar || `https://ui-avatars.com/api/?name=${user?.username}`}
+            src={getAvatarUrl(user)}
             alt={user?.username}
-            className="w-12 h-12 rounded-full"
+            className="post-avatar"
           />
-          <div className="flex-1">
+          <div className="post-form">
             <textarea
               value={postContent}
               onChange={(e) => setPostContent(e.target.value)}
-              className="w-full p-3 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="post-input"
               placeholder="What's happening?"
-              rows={3}
+              rows={2}
             />
-            <div className="mt-3 flex justify-between items-center">
-              <div className="flex space-x-3">
-                <button className="text-blue-500 hover:bg-blue-50 p-2 rounded-full">
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                </button>
+            <div className="post-actions">
+              <div className="post-tools">
+                <button className="tool-btn">📷</button>
+                <button className="tool-btn">🎥</button>
+                <button className="tool-btn">📊</button>
+                <button className="tool-btn">😊</button>
               </div>
               <button
                 onClick={handleCreatePost}
                 disabled={!postContent.trim()}
-                className="px-4 py-2 bg-blue-500 text-white rounded-full font-medium hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="post-submit-btn"
               >
                 Post
               </button>
@@ -58,42 +70,56 @@ const Home: React.FC = () => {
         </div>
       </div>
 
-      <div className="space-y-4">
+      {/* Feed */}
+      <div className="feed-container">
         {loading && posts.length === 0 ? (
-          <div className="text-center py-8">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+          <div className="loading-spinner">
+            <div className="spinner"></div>
           </div>
         ) : posts.length === 0 ? (
-          <div className="bg-white shadow rounded-lg p-8 text-center">
-            <p className="text-gray-500">No posts yet. Be the first to post!</p>
+          <div className="empty-feed">
+            <p>No posts yet. Be the first to share something!</p>
           </div>
         ) : (
           posts.map((post: Post) => (
-            <div key={post._id} className="bg-white shadow rounded-lg p-4">
-              <div className="flex items-start space-x-3">
+            <article key={post._id} className="post-card">
+              <div className="post-content-wrapper">
                 <img
-                  src={post.author.avatar || `https://ui-avatars.com/api/?name=${post.author.username}`}
+                  src={getAvatarUrl(post.author)}
                   alt={post.author.username}
-                  className="w-10 h-10 rounded-full"
+                  className="post-author-avatar"
                 />
-                <div className="flex-1">
-                  <div className="flex items-center space-x-1">
-                    <h3 className="font-semibold">{post.author.name || post.author.username}</h3>
-                    <span className="text-gray-500">@{post.author.username}</span>
-                    <span className="text-gray-500">·</span>
-                    <span className="text-gray-500 text-sm">
+                <div className="post-main">
+                  <div className="post-header">
+                    <span className="post-author-name">
+                      {post.author.name || post.author.username}
+                    </span>
+                    <span className="post-author-handle">
+                      @{post.author.username}
+                    </span>
+                    <span className="post-date">·</span>
+                    <span className="post-date">
                       {new Date(post.createdAt).toLocaleDateString()}
                     </span>
                   </div>
-                  <p className="mt-1">{post.content}</p>
-                  <div className="mt-3 flex items-center space-x-6">
-                    <button className="text-gray-500 hover:text-blue-500">💬 {post.comments?.length || 0}</button>
-                    <button className="text-gray-500 hover:text-green-500">🔄 {post.retweets?.length || 0}</button>
-                    <button className="text-gray-500 hover:text-red-500">❤️ {post.likes?.length || 0}</button>
+                  <div className="post-text">{post.content}</div>
+                  <div className="post-actions-bar">
+                    <button className="post-action-btn">
+                      💬 {post.comments?.length || 0}
+                    </button>
+                    <button className="post-action-btn">
+                      🔄 {post.retweets?.length || 0}
+                    </button>
+                    <button className="post-action-btn">
+                      ❤️ {post.likes?.length || 0}
+                    </button>
+                    <button className="post-action-btn">
+                      📤
+                    </button>
                   </div>
                 </div>
               </div>
-            </div>
+            </article>
           ))
         )}
       </div>
