@@ -1,6 +1,8 @@
 import { createSlice, createAsyncThunk, type PayloadAction } from '@reduxjs/toolkit';
 import type { FeedState, Post } from '../../types';
 
+const API_BASE = 'https://viurl.com';
+
 const initialState: FeedState = {
   posts: [],
   loading: false,
@@ -13,7 +15,7 @@ export const fetchFeed = createAsyncThunk(
   'feed/fetchFeed',
   async (page: number = 1) => {
     const token = localStorage.getItem('token');
-    const response = await fetch(`/api/posts/feed?page=${page}`, {
+    const response = await fetch(`${API_BASE}/api/posts?page=${page}`, {
       headers: {
         'Authorization': `Bearer ${token}`
       }
@@ -27,7 +29,7 @@ export const createPost = createAsyncThunk(
   'feed/createPost',
   async (content: string) => {
     const token = localStorage.getItem('token');
-    const response = await fetch('/api/posts', {
+    const response = await fetch(`${API_BASE}/api/posts`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -61,16 +63,18 @@ const feedSlice = createSlice({
       })
       .addCase(fetchFeed.fulfilled, (state, action) => {
         state.loading = false;
-        state.posts = [...state.posts, ...action.payload.posts];
-        state.hasMore = action.payload.hasMore;
-        state.page = action.payload.page;
+        state.posts = action.payload.posts || [];
+        state.hasMore = action.payload.hasMore || false;
+        state.page = action.payload.page || 1;
       })
       .addCase(fetchFeed.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message || 'Failed to load feed';
       })
       .addCase(createPost.fulfilled, (state, action) => {
-        state.posts.unshift(action.payload);
+        if (action.payload.post) {
+          state.posts.unshift(action.payload.post);
+        }
       });
   }
 });

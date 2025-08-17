@@ -6,6 +6,7 @@
   background: var(--bg-primary);
   color: var(--text-primary);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  position: relative;
 }
 
 /* Dark/Light Theme Variables */
@@ -33,7 +34,7 @@
   --accent-green-hover: #00aa00;
 }
 
-/* Left Sidebar */
+/* Left Sidebar - FIXED FOR DESKTOP */
 .sidebar {
   width: 275px;
   padding: 0 12px;
@@ -44,6 +45,7 @@
   top: 0;
   height: 100vh;
   overflow-y: auto;
+  flex-shrink: 0; /* Prevent shrinking */
 }
 
 .sidebar-content {
@@ -190,6 +192,10 @@
   display: none;
 }
 
+.post-text {
+  display: inline;
+}
+
 /* User Section */
 .user-section {
   margin-top: auto;
@@ -245,15 +251,27 @@
   padding: 4px 8px;
 }
 
-/* Main Content */
+/* Main Content - FIXED FOR DESKTOP */
 .main-content {
   flex: 1;
-  max-width: 600px;
-  border-right: 1px solid var(--border-color);
+  display: flex;
+  justify-content: center; /* Center the content */
   min-height: 100vh;
+  padding: 0;
+  background: var(--bg-primary);
 }
 
-/* Right Sidebar */
+/* Content wrapper for proper width control */
+.main-content > * {
+  width: 100%;
+  max-width: 600px; /* Twitter-like width */
+  border-left: 1px solid var(--border-color);
+  border-right: 1px solid var(--border-color);
+  min-height: 100vh;
+  background: var(--bg-primary);
+}
+
+/* Right Sidebar - FIXED FOR DESKTOP */
 .right-sidebar {
   width: 350px;
   padding: 12px 20px;
@@ -261,6 +279,7 @@
   position: sticky;
   top: 0;
   height: 100vh;
+  flex-shrink: 0; /* Prevent shrinking */
 }
 
 /* Search Container */
@@ -525,22 +544,92 @@
   color: var(--accent-green);
 }
 
-/* Responsive Design */
-@media (max-width: 1280px) {
+/* ============================================
+   RESPONSIVE DESIGN - IMPROVED
+   ============================================ */
+
+/* Large Desktop (1440px and up) */
+@media (min-width: 1440px) {
+  .sidebar {
+    width: 275px;
+  }
+  
+  .main-content > * {
+    max-width: 650px;
+  }
+  
   .right-sidebar {
-    width: 290px;
+    width: 380px;
   }
 }
 
-@media (max-width: 1024px) {
+/* Medium Desktop (1280px - 1439px) */
+@media (max-width: 1439px) and (min-width: 1280px) {
+  .sidebar {
+    width: 260px;
+  }
+  
+  .right-sidebar {
+    width: 320px;
+  }
+}
+
+/* Small Desktop (1024px - 1279px) */
+@media (max-width: 1279px) and (min-width: 1024px) {
   .sidebar {
     width: 88px;
+    padding: 0 8px;
   }
   
   .nav-label,
   .user-details,
   .post-text {
     display: none;
+  }
+  
+  .nav-icon {
+    margin: 0;
+  }
+  
+  .post-button {
+    width: 50px;
+    height: 50px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 16px auto;
+  }
+  
+  .post-icon {
+    display: block;
+    font-size: 24px;
+  }
+  
+  .logo-text {
+    font-size: 24px;
+  }
+  
+  .right-sidebar {
+    width: 290px;
+  }
+}
+
+/* Tablet (768px - 1023px) */
+@media (max-width: 1023px) and (min-width: 768px) {
+  .sidebar {
+    width: 68px;
+    padding: 0 8px;
+  }
+  
+  .nav-label,
+  .user-details,
+  .post-text {
+    display: none;
+  }
+  
+  .nav-icon {
+    margin: 0;
   }
   
   .post-button {
@@ -557,16 +646,18 @@
     font-size: 24px;
   }
   
-  .nav-icon {
-    margin: 0;
+  .right-sidebar {
+    display: none;
   }
   
-  .logo-text {
-    font-size: 24px;
+  .main-content > * {
+    max-width: 100%;
+    border-right: none;
   }
 }
 
-@media (max-width: 768px) {
+/* Mobile (below 768px) */
+@media (max-width: 767px) {
   .sidebar {
     display: none;
   }
@@ -576,6 +667,11 @@
   }
   
   .main-content {
+    padding: 0;
+    justify-content: stretch;
+  }
+  
+  .main-content > * {
     max-width: 100%;
     border: none;
   }
