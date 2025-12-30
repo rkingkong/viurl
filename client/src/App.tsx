@@ -1,7 +1,7 @@
 // App.tsx - VIURL Main Application Router
 // Location: client/src/App.tsx
 
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAppDispatch, useAppSelector } from './hooks/useRedux';
 import { setUser, setLoading, logout } from './store/slices/authSlice';
 
@@ -9,6 +9,11 @@ import { setUser, setLoading, logout } from './store/slices/authSlice';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Profile from './pages/Profile';
+import Explore from './pages/Explore';
+import Notifications from './pages/Notifications';
+
+// Layout
+import Layout from './components/Layout/Layout';
 
 // API Base URL
 const API_BASE = 'https://viurl.com';
@@ -35,9 +40,13 @@ interface RouteParams {
   query?: string;
 }
 
-const App: React.FC = () => {
+interface PageProps {
+  onNavigate: (page: string, params?: RouteParams) => void;
+}
+
+const App = () => {
   const dispatch = useAppDispatch();
-  const { user, isAuthenticated, loading: authLoading } = useAppSelector((state) => state.auth);
+  const { user, isAuthenticated } = useAppSelector((state) => state.auth);
   
   const [currentRoute, setCurrentRoute] = useState<Route>('home');
   const [routeParams, setRouteParams] = useState<RouteParams>({});
@@ -160,8 +169,8 @@ const App: React.FC = () => {
   };
 
   // Navigate to a route
-  const navigate = (route: Route, params?: RouteParams) => {
-    setCurrentRoute(route);
+  const navigate = (route: string, params?: RouteParams) => {
+    setCurrentRoute(route as Route);
     setRouteParams(params || {});
     
     // Update URL
@@ -213,69 +222,90 @@ const App: React.FC = () => {
           </div>
           <p style={styles.loadingText}>Loading VIURL...</p>
         </div>
-        
-        {/* Loading animation styles */}
-        <style>{`
-          @keyframes pulse {
-            0%, 100% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.1); opacity: 0.8; }
-          }
-          @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-          }
-        `}</style>
+        <style>{loadingAnimations}</style>
       </div>
     );
   }
 
   // Render current route
   const renderRoute = () => {
+    // Auth pages (no layout)
+    if (currentRoute === 'login' || currentRoute === 'register') {
+      return (
+        <Login 
+          onNavigate={navigate}
+          onLoginSuccess={handleLoginSuccess}
+        />
+      );
+    }
+
+    // All other pages use Layout
+    return (
+      <Layout 
+        currentPage={currentRoute} 
+        onNavigate={navigate} 
+        pageTitle={getPageTitle(currentRoute)}
+      >
+        {renderPageContent()}
+      </Layout>
+    );
+  };
+
+  // Get page title for header
+  const getPageTitle = (route: Route): string => {
+    const titles: Record<Route, string> = {
+      home: 'Home',
+      explore: 'Explore',
+      notifications: 'Notifications',
+      messages: 'Messages',
+      bookmarks: 'Bookmarks',
+      verified: 'My Verifications',
+      tokens: 'V-TKN Wallet',
+      profile: 'Profile',
+      settings: 'Settings',
+      login: 'Login',
+      register: 'Register',
+      post: 'Post',
+      search: 'Search',
+    };
+    return titles[route] || 'VIURL';
+  };
+
+  // Render page content based on route
+  const renderPageContent = () => {
     switch (currentRoute) {
-      case 'login':
-      case 'register':
-        return (
-          <Login 
-            onNavigate={(page) => navigate(page as Route)}
-            onLoginSuccess={handleLoginSuccess}
-          />
-        );
+      case 'home':
+        return <Home onNavigate={navigate} />;
       
       case 'profile':
-        return (
-          <Profile 
-            userId={routeParams.userId}
-            onNavigate={(page) => navigate(page as Route)}
-          />
-        );
+        return <Profile userId={routeParams.userId} onNavigate={navigate} />;
       
       case 'explore':
-        return <ExplorePage onNavigate={(page) => navigate(page as Route)} />;
+        return <Explore />;
       
       case 'notifications':
-        return <NotificationsPage onNavigate={(page) => navigate(page as Route)} />;
+        return <Notifications onNavigate={navigate} />;
       
       case 'messages':
-        return <MessagesPage onNavigate={(page) => navigate(page as Route)} />;
+        return <MessagesPage />;
       
       case 'bookmarks':
-        return <BookmarksPage onNavigate={(page) => navigate(page as Route)} />;
+        return <BookmarksPage onNavigate={navigate} />;
       
       case 'verified':
-        return <VerificationsPage onNavigate={(page) => navigate(page as Route)} />;
+        return <VerificationsPage />;
       
       case 'tokens':
-        return <TokensPage onNavigate={(page) => navigate(page as Route)} />;
+        return <TokensPage />;
       
       case 'settings':
-        return <SettingsPage onNavigate={(page) => navigate(page as Route)} onLogout={handleLogout} />;
+        return <SettingsPage onLogout={handleLogout} />;
       
       case 'search':
-        return <SearchPage query={routeParams.query} onNavigate={(page) => navigate(page as Route)} />;
+        return <SearchPage query={routeParams.query} onNavigate={navigate} />;
       
-      case 'home':
       default:
-        return <Home onNavigate={(page) => navigate(page as Route)} />;
+        return <Home onNavigate={navigate} />;
     }
   };
 
@@ -288,15 +318,17 @@ const App: React.FC = () => {
 };
 
 // ============================================
-// Placeholder Pages (Coming Soon)
+// Placeholder Components (To be built)
 // ============================================
 
-interface PageProps {
-  onNavigate: (page: string) => void;
-}
-
-const PlaceholderContent: React.FC<{ icon: string; title: string; description: string }> = ({ 
-  icon, title, description 
+const PlaceholderContent = ({ 
+  icon, 
+  title, 
+  description 
+}: { 
+  icon: string; 
+  title: string; 
+  description: string;
 }) => (
   <div style={placeholderStyles.container}>
     <span style={placeholderStyles.icon}>{icon}</span>
@@ -308,101 +340,301 @@ const PlaceholderContent: React.FC<{ icon: string; title: string; description: s
   </div>
 );
 
-const ExplorePage: React.FC<PageProps> = ({ onNavigate }) => {
-  const Layout = require('./components/Layout/Layout').default;
+// Messages Page
+const MessagesPage = () => (
+  <PlaceholderContent 
+    icon="✉️" 
+    title="Messages" 
+    description="Direct messages with other truth-seekers. End-to-end encrypted." 
+  />
+);
+
+// Bookmarks Page
+const BookmarksPage = ({ onNavigate }: { onNavigate: (page: string) => void }) => {
+  const [bookmarks] = useState<any[]>([]);
+  
+  if (bookmarks.length === 0) {
+    return (
+      <PlaceholderContent 
+        icon="🔖" 
+        title="Bookmarks" 
+        description="Save posts to read later. Your bookmarks will appear here." 
+      />
+    );
+  }
+  
   return (
-    <Layout currentPage="explore" onNavigate={onNavigate} pageTitle="Explore">
-      <PlaceholderContent icon="🔍" title="Explore" description="Discover trending topics and verified content." />
-    </Layout>
+    <div style={{ padding: '16px' }}>
+      {/* Bookmarked posts would render here */}
+    </div>
   );
 };
 
-const NotificationsPage: React.FC<PageProps> = ({ onNavigate }) => {
-  const Layout = require('./components/Layout/Layout').default;
+// Verifications Page
+const VerificationsPage = () => {
+  const { user } = useAppSelector((state) => state.auth);
+  
   return (
-    <Layout currentPage="notifications" onNavigate={onNavigate} pageTitle="Notifications">
-      <PlaceholderContent icon="🔔" title="Notifications" description="Stay updated with verifications and mentions." />
-    </Layout>
+    <div style={verificationsStyles.container}>
+      {/* Stats Header */}
+      <div style={verificationsStyles.statsGrid}>
+        <div style={verificationsStyles.statCard}>
+          <div style={verificationsStyles.statValue}>{user?.verifiedPosts?.length || 0}</div>
+          <div style={verificationsStyles.statLabel}>Posts Verified</div>
+        </div>
+        <div style={verificationsStyles.statCard}>
+          <div style={{ ...verificationsStyles.statValue, color: '#00FF00' }}>
+            {user?.trustScore || 0}%
+          </div>
+          <div style={verificationsStyles.statLabel}>Accuracy Rate</div>
+        </div>
+        <div style={verificationsStyles.statCard}>
+          <div style={verificationsStyles.statValue}>{user?.vtokens || 0}</div>
+          <div style={verificationsStyles.statLabel}>V-TKN Earned</div>
+        </div>
+      </div>
+
+      {/* Recent Verifications */}
+      <div style={verificationsStyles.section}>
+        <h3 style={verificationsStyles.sectionTitle}>Recent Verifications</h3>
+        <PlaceholderContent 
+          icon="✅" 
+          title="No Verifications Yet" 
+          description="Start verifying posts to earn V-TKN tokens and build your reputation." 
+        />
+      </div>
+    </div>
   );
 };
 
-const MessagesPage: React.FC<PageProps> = ({ onNavigate }) => {
-  const Layout = require('./components/Layout/Layout').default;
+// Tokens/Wallet Page
+const TokensPage = () => {
+  const { user } = useAppSelector((state) => state.auth);
+  
   return (
-    <Layout currentPage="messages" onNavigate={onNavigate} pageTitle="Messages">
-      <PlaceholderContent icon="✉️" title="Messages" description="Direct messages with other users." />
-    </Layout>
-  );
-};
+    <div style={tokenStyles.container}>
+      {/* Balance Card */}
+      <div style={tokenStyles.balanceCard}>
+        <div style={tokenStyles.balanceIcon}>💰</div>
+        <div style={tokenStyles.balanceAmount}>{user?.vtokens || 0}</div>
+        <div style={tokenStyles.balanceLabel}>V-TKN Balance</div>
+        <div style={tokenStyles.usdValue}>
+          ≈ ${((user?.vtokens || 0) * 0.05).toFixed(2)} USD
+        </div>
+        <div style={tokenStyles.actions}>
+          <button style={tokenStyles.btn}>
+            <span>↑</span> Send
+          </button>
+          <button style={tokenStyles.btn}>
+            <span>↓</span> Receive
+          </button>
+          <button style={tokenStyles.btnPrimary}>
+            <span>✓</span> Earn More
+          </button>
+        </div>
+      </div>
 
-const BookmarksPage: React.FC<PageProps> = ({ onNavigate }) => {
-  const Layout = require('./components/Layout/Layout').default;
-  return (
-    <Layout currentPage="bookmarks" onNavigate={onNavigate} pageTitle="Bookmarks">
-      <PlaceholderContent icon="🔖" title="Bookmarks" description="Posts you've saved for later." />
-    </Layout>
-  );
-};
-
-const VerificationsPage: React.FC<PageProps> = ({ onNavigate }) => {
-  const Layout = require('./components/Layout/Layout').default;
-  return (
-    <Layout currentPage="verified" onNavigate={onNavigate} pageTitle="My Verifications">
-      <PlaceholderContent icon="✅" title="My Verifications" description="Track your verification history." />
-    </Layout>
-  );
-};
-
-const TokensPage: React.FC<PageProps> = ({ onNavigate }) => {
-  const Layout = require('./components/Layout/Layout').default;
-  return (
-    <Layout currentPage="tokens" onNavigate={onNavigate} pageTitle="V-TKN Tokens">
-      <div style={tokenStyles.container}>
-        <div style={tokenStyles.balanceCard}>
-          <div style={tokenStyles.balanceIcon}>💰</div>
-          <div style={tokenStyles.balanceAmount}>0</div>
-          <div style={tokenStyles.balanceLabel}>V-TKN Balance</div>
-          <div style={tokenStyles.actions}>
-            <button style={tokenStyles.btn}>Send</button>
-            <button style={tokenStyles.btn}>Receive</button>
-            <button style={tokenStyles.btnPrimary}>Earn More</button>
+      {/* How to Earn */}
+      <div style={tokenStyles.earnSection}>
+        <h3 style={tokenStyles.sectionTitle}>💡 How to Earn V-TKN</h3>
+        <div style={tokenStyles.earnItem}>
+          <span style={tokenStyles.earnIcon}>✅</span>
+          <div style={tokenStyles.earnInfo}>
+            <div style={tokenStyles.earnTitle}>Verify Posts Accurately</div>
+            <div style={tokenStyles.earnReward}>+5-15 V-TKN per verification</div>
           </div>
         </div>
-        <div style={tokenStyles.earnSection}>
-          <h3 style={tokenStyles.sectionTitle}>How to Earn V-TKN</h3>
-          <div style={tokenStyles.earnItem}><span>✅</span> Verify posts accurately</div>
-          <div style={tokenStyles.earnItem}><span>📝</span> Create quality content</div>
-          <div style={tokenStyles.earnItem}><span>🏆</span> Climb the leaderboard</div>
-          <div style={tokenStyles.earnItem}><span>🎁</span> Daily login bonus</div>
+        <div style={tokenStyles.earnItem}>
+          <span style={tokenStyles.earnIcon}>📝</span>
+          <div style={tokenStyles.earnInfo}>
+            <div style={tokenStyles.earnTitle}>Create Quality Content</div>
+            <div style={tokenStyles.earnReward}>+2 V-TKN per verified post</div>
+          </div>
+        </div>
+        <div style={tokenStyles.earnItem}>
+          <span style={tokenStyles.earnIcon}>🏆</span>
+          <div style={tokenStyles.earnInfo}>
+            <div style={tokenStyles.earnTitle}>Weekly Leaderboard Rewards</div>
+            <div style={tokenStyles.earnReward}>Top 100 earn bonus V-TKN</div>
+          </div>
+        </div>
+        <div style={tokenStyles.earnItem}>
+          <span style={tokenStyles.earnIcon}>🎁</span>
+          <div style={tokenStyles.earnInfo}>
+            <div style={tokenStyles.earnTitle}>Daily Login Streak</div>
+            <div style={tokenStyles.earnReward}>+1 V-TKN per day (7-day bonus!)</div>
+          </div>
+        </div>
+        <div style={tokenStyles.earnItem}>
+          <span style={tokenStyles.earnIcon}>👥</span>
+          <div style={tokenStyles.earnInfo}>
+            <div style={tokenStyles.earnTitle}>Refer Friends</div>
+            <div style={tokenStyles.earnReward}>+50 V-TKN per referral</div>
+          </div>
         </div>
       </div>
-    </Layout>
-  );
-};
 
-const SettingsPage: React.FC<PageProps & { onLogout: () => void }> = ({ onNavigate, onLogout }) => {
-  const Layout = require('./components/Layout/Layout').default;
-  return (
-    <Layout currentPage="settings" onNavigate={onNavigate} pageTitle="Settings">
-      <div style={settingsStyles.container}>
-        <button style={settingsStyles.item}><span>👤</span> Account Information</button>
-        <button style={settingsStyles.item}><span>🔐</span> Security</button>
-        <button style={settingsStyles.item}><span>🔗</span> Connected Wallet</button>
-        <button style={settingsStyles.item}><span>🎨</span> Display</button>
-        <button style={settingsStyles.item}><span>🔔</span> Notifications</button>
-        <button style={settingsStyles.item}><span>🔒</span> Privacy</button>
-        <button style={settingsStyles.logoutBtn} onClick={onLogout}>Log out</button>
+      {/* Transaction History */}
+      <div style={tokenStyles.historySection}>
+        <h3 style={tokenStyles.sectionTitle}>📊 Transaction History</h3>
+        <div style={tokenStyles.emptyHistory}>
+          <span>📭</span>
+          <p>No transactions yet</p>
+        </div>
       </div>
-    </Layout>
+    </div>
   );
 };
 
-const SearchPage: React.FC<PageProps & { query?: string }> = ({ query, onNavigate }) => {
-  const Layout = require('./components/Layout/Layout').default;
+// Settings Page
+const SettingsPage = ({ onLogout }: { onLogout: () => void }) => {
+  const { user } = useAppSelector((state) => state.auth);
+  
+  const settingsItems = [
+    { icon: '👤', label: 'Account Information', description: 'Update your profile details' },
+    { icon: '🔐', label: 'Security', description: 'Password and authentication' },
+    { icon: '🔗', label: 'Connected Wallet', description: 'Manage blockchain wallet' },
+    { icon: '🎨', label: 'Display', description: 'Theme and appearance' },
+    { icon: '🔔', label: 'Notifications', description: 'Push and email preferences' },
+    { icon: '🔒', label: 'Privacy', description: 'Control your data' },
+    { icon: '❓', label: 'Help Center', description: 'FAQs and support' },
+    { icon: '📄', label: 'Terms of Service', description: 'Legal information' },
+  ];
+
   return (
-    <Layout currentPage="search" onNavigate={onNavigate} pageTitle="Search">
-      <PlaceholderContent icon="🔍" title={query ? `"${query}"` : "Search"} description="Search for people and posts." />
-    </Layout>
+    <div style={settingsStyles.container}>
+      {/* User Info Header */}
+      {user && (
+        <div style={settingsStyles.userHeader}>
+          <div style={settingsStyles.userAvatar}>
+            {user.profilePicture ? (
+              <img src={user.profilePicture} alt="" style={{ width: '100%', height: '100%', borderRadius: '50%' }} />
+            ) : (
+              user.name?.charAt(0) || 'U'
+            )}
+          </div>
+          <div style={settingsStyles.userInfo}>
+            <div style={settingsStyles.userName}>{user.name}</div>
+            <div style={settingsStyles.userEmail}>{user.email}</div>
+          </div>
+        </div>
+      )}
+
+      {/* Settings Items */}
+      <div style={settingsStyles.section}>
+        {settingsItems.map((item, index) => (
+          <button 
+            key={index} 
+            style={settingsStyles.item}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#111'}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+          >
+            <span style={settingsStyles.itemIcon}>{item.icon}</span>
+            <div style={settingsStyles.itemContent}>
+              <div style={settingsStyles.itemLabel}>{item.label}</div>
+              <div style={settingsStyles.itemDescription}>{item.description}</div>
+            </div>
+            <span style={settingsStyles.itemArrow}>›</span>
+          </button>
+        ))}
+      </div>
+
+      {/* Logout Button */}
+      <button 
+        style={settingsStyles.logoutBtn} 
+        onClick={onLogout}
+        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#FF444420'}
+        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+      >
+        Log out @{user?.username || 'user'}
+      </button>
+
+      {/* App Version */}
+      <div style={settingsStyles.version}>
+        VIURL v1.0.0 · Built with 💚
+      </div>
+    </div>
+  );
+};
+
+// Search Page
+const SearchPage = ({ 
+  query, 
+  onNavigate 
+}: { 
+  query?: string; 
+  onNavigate: (page: string) => void;
+}) => {
+  const [searchQuery, setSearchQuery] = useState(query || '');
+  const [activeTab, setActiveTab] = useState<'top' | 'users' | 'posts'>('top');
+
+  return (
+    <div style={searchStyles.container}>
+      {/* Search Input */}
+      <div style={searchStyles.searchBox}>
+        <span style={searchStyles.searchIcon}>🔍</span>
+        <input
+          type="text"
+          placeholder="Search VIURL..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          style={searchStyles.searchInput}
+          autoFocus
+        />
+        {searchQuery && (
+          <button 
+            style={searchStyles.clearBtn}
+            onClick={() => setSearchQuery('')}
+          >
+            ✕
+          </button>
+        )}
+      </div>
+
+      {/* Tabs */}
+      <div style={searchStyles.tabs}>
+        {(['top', 'users', 'posts'] as const).map((tab) => (
+          <button
+            key={tab}
+            style={{
+              ...searchStyles.tab,
+              color: activeTab === tab ? '#fff' : '#888',
+              fontWeight: activeTab === tab ? 700 : 500,
+            }}
+            onClick={() => setActiveTab(tab)}
+          >
+            {tab.charAt(0).toUpperCase() + tab.slice(1)}
+            {activeTab === tab && <div style={searchStyles.tabIndicator} />}
+          </button>
+        ))}
+      </div>
+
+      {/* Results */}
+      {searchQuery ? (
+        <div style={searchStyles.results}>
+          <PlaceholderContent 
+            icon="🔍" 
+            title={`Results for "${searchQuery}"`} 
+            description="Search functionality coming soon!" 
+          />
+        </div>
+      ) : (
+        <div style={searchStyles.suggestions}>
+          <h3 style={searchStyles.suggestionsTitle}>Try searching for</h3>
+          <div style={searchStyles.suggestionsList}>
+            {['#FactCheck', '#ClimateAction', '#TechNews', 'People you know'].map((suggestion) => (
+              <button
+                key={suggestion}
+                style={searchStyles.suggestionItem}
+                onClick={() => setSearchQuery(suggestion)}
+              >
+                <span>🔍</span> {suggestion}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
 
@@ -410,49 +642,467 @@ const SearchPage: React.FC<PageProps & { query?: string }> = ({ query, onNavigat
 // Styles
 // ============================================
 
-const styles: { [key: string]: React.CSSProperties } = {
-  app: { minHeight: '100vh', backgroundColor: '#000' },
-  loadingScreen: { display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', backgroundColor: '#000' },
-  loadingContent: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '24px' },
-  loadingLogo: { position: 'relative', width: '80px', height: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  loadingLogoText: { fontSize: '60px', fontWeight: 900, color: '#00FF00', textShadow: '0 0 30px rgba(0, 255, 0, 0.5)', fontFamily: 'Arial Black', animation: 'pulse 2s ease-in-out infinite' },
-  loadingGlow: { position: 'absolute', width: '150%', height: '150%', borderRadius: '50%', background: 'radial-gradient(circle, rgba(0,255,0,0.2) 0%, transparent 70%)' },
-  loadingSpinner: { width: '40px', height: '40px' },
-  spinnerRing: { width: '100%', height: '100%', border: '3px solid #333', borderTopColor: '#00FF00', borderRadius: '50%', animation: 'spin 1s linear infinite' },
-  loadingText: { color: '#888', fontSize: '14px' },
+const styles: Record<string, React.CSSProperties> = {
+  app: { 
+    minHeight: '100vh', 
+    backgroundColor: '#000' 
+  },
+  loadingScreen: { 
+    display: 'flex', 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    minHeight: '100vh', 
+    backgroundColor: '#000' 
+  },
+  loadingContent: { 
+    display: 'flex', 
+    flexDirection: 'column', 
+    alignItems: 'center', 
+    gap: '24px' 
+  },
+  loadingLogo: { 
+    position: 'relative', 
+    width: '80px', 
+    height: '80px', 
+    display: 'flex', 
+    alignItems: 'center', 
+    justifyContent: 'center' 
+  },
+  loadingLogoText: { 
+    fontSize: '60px', 
+    fontWeight: 900, 
+    color: '#00FF00', 
+    textShadow: '0 0 30px rgba(0, 255, 0, 0.5)', 
+    fontFamily: 'Arial Black', 
+    animation: 'pulse 2s ease-in-out infinite' 
+  },
+  loadingGlow: { 
+    position: 'absolute', 
+    width: '150%', 
+    height: '150%', 
+    borderRadius: '50%', 
+    background: 'radial-gradient(circle, rgba(0,255,0,0.2) 0%, transparent 70%)' 
+  },
+  loadingSpinner: { 
+    width: '40px', 
+    height: '40px' 
+  },
+  spinnerRing: { 
+    width: '100%', 
+    height: '100%', 
+    border: '3px solid #333', 
+    borderTopColor: '#00FF00', 
+    borderRadius: '50%', 
+    animation: 'spin 1s linear infinite' 
+  },
+  loadingText: { 
+    color: '#888', 
+    fontSize: '14px' 
+  },
 };
 
-const placeholderStyles: { [key: string]: React.CSSProperties } = {
-  container: { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '80px 20px', gap: '16px' },
-  icon: { fontSize: '64px' },
-  title: { fontSize: '24px', fontWeight: 800, color: '#fff', margin: 0 },
-  description: { fontSize: '15px', color: '#888', textAlign: 'center', maxWidth: '300px' },
-  badge: { display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', backgroundColor: 'rgba(0, 255, 0, 0.1)', border: '1px solid rgba(0, 255, 0, 0.3)', borderRadius: '20px', color: '#00FF00', fontSize: '14px', marginTop: '16px' },
+const placeholderStyles: Record<string, React.CSSProperties> = {
+  container: { 
+    display: 'flex', 
+    flexDirection: 'column', 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    padding: '80px 20px', 
+    gap: '16px' 
+  },
+  icon: { 
+    fontSize: '64px' 
+  },
+  title: { 
+    fontSize: '24px', 
+    fontWeight: 800, 
+    color: '#fff', 
+    margin: 0 
+  },
+  description: { 
+    fontSize: '15px', 
+    color: '#888', 
+    textAlign: 'center', 
+    maxWidth: '300px' 
+  },
+  badge: { 
+    display: 'flex', 
+    alignItems: 'center', 
+    gap: '8px', 
+    padding: '8px 16px', 
+    backgroundColor: 'rgba(0, 255, 0, 0.1)', 
+    border: '1px solid rgba(0, 255, 0, 0.3)', 
+    borderRadius: '20px', 
+    color: '#00FF00', 
+    fontSize: '14px', 
+    marginTop: '16px' 
+  },
 };
 
-const tokenStyles: { [key: string]: React.CSSProperties } = {
-  container: { padding: '20px' },
-  balanceCard: { display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '32px', backgroundColor: '#0a0a0a', border: '1px solid #00FF00', borderRadius: '20px', marginBottom: '20px' },
-  balanceIcon: { fontSize: '48px', marginBottom: '8px' },
-  balanceAmount: { fontSize: '48px', fontWeight: 900, color: '#00FF00', textShadow: '0 0 20px rgba(0, 255, 0, 0.3)' },
-  balanceLabel: { fontSize: '16px', color: '#888', marginBottom: '24px' },
-  actions: { display: 'flex', gap: '12px' },
-  btn: { padding: '12px 24px', backgroundColor: 'transparent', border: '1px solid #333', borderRadius: '25px', color: '#fff', fontSize: '15px', fontWeight: 600, cursor: 'pointer' },
-  btnPrimary: { padding: '12px 24px', backgroundColor: '#00FF00', border: 'none', borderRadius: '25px', color: '#000', fontSize: '15px', fontWeight: 700, cursor: 'pointer' },
-  earnSection: { backgroundColor: '#101010', borderRadius: '16px', padding: '20px' },
-  sectionTitle: { fontSize: '18px', fontWeight: 800, color: '#fff', margin: '0 0 16px 0' },
-  earnItem: { display: 'flex', gap: '12px', padding: '12px 0', color: '#fff', fontSize: '15px', borderBottom: '1px solid #2a2a2a' },
+const verificationsStyles: Record<string, React.CSSProperties> = {
+  container: { 
+    padding: '16px' 
+  },
+  statsGrid: { 
+    display: 'grid', 
+    gridTemplateColumns: 'repeat(3, 1fr)', 
+    gap: '12px', 
+    marginBottom: '24px' 
+  },
+  statCard: { 
+    backgroundColor: '#111', 
+    borderRadius: '12px', 
+    padding: '16px', 
+    textAlign: 'center', 
+    border: '1px solid #222' 
+  },
+  statValue: { 
+    fontSize: '28px', 
+    fontWeight: 800, 
+    color: '#fff', 
+    marginBottom: '4px' 
+  },
+  statLabel: { 
+    fontSize: '12px', 
+    color: '#888' 
+  },
+  section: { 
+    marginTop: '24px' 
+  },
+  sectionTitle: { 
+    fontSize: '18px', 
+    fontWeight: 700, 
+    color: '#fff', 
+    marginBottom: '16px' 
+  },
 };
 
-const settingsStyles: { [key: string]: React.CSSProperties } = {
-  container: { padding: '0' },
-  item: { display: 'flex', alignItems: 'center', gap: '16px', width: '100%', padding: '20px 16px', backgroundColor: 'transparent', border: 'none', borderBottom: '1px solid #2a2a2a', cursor: 'pointer', textAlign: 'left', color: '#fff', fontSize: '16px' },
-  logoutBtn: { width: 'calc(100% - 32px)', margin: '20px 16px', padding: '16px', backgroundColor: 'transparent', border: '1px solid #FF4444', borderRadius: '12px', color: '#FF4444', fontSize: '16px', fontWeight: 700, cursor: 'pointer' },
+const tokenStyles: Record<string, React.CSSProperties> = {
+  container: { 
+    padding: '16px' 
+  },
+  balanceCard: { 
+    display: 'flex', 
+    flexDirection: 'column', 
+    alignItems: 'center', 
+    padding: '32px', 
+    backgroundColor: '#0a0a0a', 
+    border: '1px solid #00FF00', 
+    borderRadius: '20px', 
+    marginBottom: '20px' 
+  },
+  balanceIcon: { 
+    fontSize: '48px', 
+    marginBottom: '8px' 
+  },
+  balanceAmount: { 
+    fontSize: '48px', 
+    fontWeight: 900, 
+    color: '#00FF00', 
+    textShadow: '0 0 20px rgba(0, 255, 0, 0.3)' 
+  },
+  balanceLabel: { 
+    fontSize: '16px', 
+    color: '#888', 
+    marginBottom: '4px' 
+  },
+  usdValue: { 
+    fontSize: '14px', 
+    color: '#666', 
+    marginBottom: '24px' 
+  },
+  actions: { 
+    display: 'flex', 
+    gap: '12px' 
+  },
+  btn: { 
+    display: 'flex', 
+    alignItems: 'center', 
+    gap: '6px', 
+    padding: '12px 20px', 
+    backgroundColor: 'transparent', 
+    border: '1px solid #333', 
+    borderRadius: '25px', 
+    color: '#fff', 
+    fontSize: '14px', 
+    fontWeight: 600, 
+    cursor: 'pointer' 
+  },
+  btnPrimary: { 
+    display: 'flex', 
+    alignItems: 'center', 
+    gap: '6px', 
+    padding: '12px 20px', 
+    backgroundColor: '#00FF00', 
+    border: 'none', 
+    borderRadius: '25px', 
+    color: '#000', 
+    fontSize: '14px', 
+    fontWeight: 700, 
+    cursor: 'pointer' 
+  },
+  earnSection: { 
+    backgroundColor: '#0a0a0a', 
+    borderRadius: '16px', 
+    padding: '20px', 
+    border: '1px solid #222',
+    marginBottom: '20px'
+  },
+  sectionTitle: { 
+    fontSize: '18px', 
+    fontWeight: 700, 
+    color: '#fff', 
+    margin: '0 0 16px 0' 
+  },
+  earnItem: { 
+    display: 'flex', 
+    alignItems: 'center', 
+    gap: '16px', 
+    padding: '14px 0', 
+    borderBottom: '1px solid #222' 
+  },
+  earnIcon: { 
+    fontSize: '24px', 
+    width: '40px', 
+    height: '40px', 
+    display: 'flex', 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    backgroundColor: '#111', 
+    borderRadius: '10px' 
+  },
+  earnInfo: { 
+    flex: 1 
+  },
+  earnTitle: { 
+    color: '#fff', 
+    fontSize: '15px', 
+    fontWeight: 600, 
+    marginBottom: '2px' 
+  },
+  earnReward: { 
+    color: '#00FF00', 
+    fontSize: '13px' 
+  },
+  historySection: { 
+    backgroundColor: '#0a0a0a', 
+    borderRadius: '16px', 
+    padding: '20px', 
+    border: '1px solid #222' 
+  },
+  emptyHistory: { 
+    textAlign: 'center', 
+    padding: '40px 20px', 
+    color: '#666', 
+    fontSize: '14px' 
+  },
 };
+
+const settingsStyles: Record<string, React.CSSProperties> = {
+  container: { 
+    padding: '0' 
+  },
+  userHeader: { 
+    display: 'flex', 
+    alignItems: 'center', 
+    gap: '16px', 
+    padding: '20px 16px', 
+    borderBottom: '1px solid #222' 
+  },
+  userAvatar: { 
+    width: '56px', 
+    height: '56px', 
+    borderRadius: '50%', 
+    backgroundColor: '#00FF00', 
+    display: 'flex', 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    color: '#000', 
+    fontSize: '24px', 
+    fontWeight: 700 
+  },
+  userInfo: { 
+    flex: 1 
+  },
+  userName: { 
+    color: '#fff', 
+    fontSize: '18px', 
+    fontWeight: 700, 
+    marginBottom: '2px' 
+  },
+  userEmail: { 
+    color: '#888', 
+    fontSize: '14px' 
+  },
+  section: { 
+    borderBottom: '8px solid #111' 
+  },
+  item: { 
+    display: 'flex', 
+    alignItems: 'center', 
+    gap: '16px', 
+    width: '100%', 
+    padding: '16px', 
+    backgroundColor: 'transparent', 
+    border: 'none', 
+    borderBottom: '1px solid #222', 
+    cursor: 'pointer', 
+    textAlign: 'left' 
+  },
+  itemIcon: { 
+    fontSize: '20px', 
+    width: '24px', 
+    textAlign: 'center' 
+  },
+  itemContent: { 
+    flex: 1 
+  },
+  itemLabel: { 
+    color: '#fff', 
+    fontSize: '16px', 
+    marginBottom: '2px' 
+  },
+  itemDescription: { 
+    color: '#666', 
+    fontSize: '13px' 
+  },
+  itemArrow: { 
+    color: '#666', 
+    fontSize: '20px' 
+  },
+  logoutBtn: { 
+    width: 'calc(100% - 32px)', 
+    margin: '20px 16px', 
+    padding: '16px', 
+    backgroundColor: 'transparent', 
+    border: '1px solid #FF4444', 
+    borderRadius: '12px', 
+    color: '#FF4444', 
+    fontSize: '16px', 
+    fontWeight: 600, 
+    cursor: 'pointer' 
+  },
+  version: { 
+    textAlign: 'center', 
+    padding: '20px', 
+    color: '#444', 
+    fontSize: '13px' 
+  },
+};
+
+const searchStyles: Record<string, React.CSSProperties> = {
+  container: { 
+    padding: '0' 
+  },
+  searchBox: { 
+    position: 'relative', 
+    padding: '12px 16px' 
+  },
+  searchIcon: { 
+    position: 'absolute', 
+    left: '28px', 
+    top: '50%', 
+    transform: 'translateY(-50%)', 
+    fontSize: '16px' 
+  },
+  searchInput: { 
+    width: '100%', 
+    backgroundColor: '#222', 
+    border: '1px solid #333', 
+    borderRadius: '9999px', 
+    padding: '12px 20px 12px 44px', 
+    color: '#fff', 
+    fontSize: '15px', 
+    outline: 'none' 
+  },
+  clearBtn: { 
+    position: 'absolute', 
+    right: '28px', 
+    top: '50%', 
+    transform: 'translateY(-50%)', 
+    width: '22px', 
+    height: '22px', 
+    borderRadius: '50%', 
+    backgroundColor: '#00FF00', 
+    border: 'none', 
+    color: '#000', 
+    fontSize: '12px', 
+    fontWeight: 700, 
+    cursor: 'pointer' 
+  },
+  tabs: { 
+    display: 'flex', 
+    borderBottom: '1px solid #333' 
+  },
+  tab: { 
+    flex: 1, 
+    padding: '16px', 
+    backgroundColor: 'transparent', 
+    border: 'none', 
+    fontSize: '15px', 
+    cursor: 'pointer', 
+    position: 'relative' 
+  },
+  tabIndicator: { 
+    position: 'absolute', 
+    bottom: '0', 
+    left: '50%', 
+    transform: 'translateX(-50%)', 
+    width: '50px', 
+    height: '4px', 
+    backgroundColor: '#00FF00', 
+    borderRadius: '2px' 
+  },
+  results: { 
+    padding: '20px' 
+  },
+  suggestions: { 
+    padding: '20px 16px' 
+  },
+  suggestionsTitle: { 
+    color: '#fff', 
+    fontSize: '18px', 
+    fontWeight: 700, 
+    marginBottom: '16px' 
+  },
+  suggestionsList: { 
+    display: 'flex', 
+    flexDirection: 'column', 
+    gap: '4px' 
+  },
+  suggestionItem: { 
+    display: 'flex', 
+    alignItems: 'center', 
+    gap: '12px', 
+    padding: '12px', 
+    backgroundColor: 'transparent', 
+    border: 'none', 
+    borderRadius: '8px', 
+    color: '#fff', 
+    fontSize: '15px', 
+    cursor: 'pointer', 
+    textAlign: 'left' 
+  },
+};
+
+const loadingAnimations = `
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.1); opacity: 0.8; }
+  }
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+`;
 
 const globalStyles = `
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background-color: #000; color: #fff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  body { 
+    background-color: #000; 
+    color: #fff; 
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+  }
   ::-webkit-scrollbar { width: 8px; }
   ::-webkit-scrollbar-track { background: #000; }
   ::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
@@ -460,8 +1110,8 @@ const globalStyles = `
   ::selection { background: rgba(0, 255, 0, 0.3); }
   a { color: #00FF00; text-decoration: none; }
   button { font-family: inherit; }
-  @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.8; } }
+  input:focus { border-color: #00FF00 !important; }
+  textarea:focus { border-color: #00FF00 !important; }
 `;
 
 export default App;

@@ -1,563 +1,655 @@
-// PostCard.tsx - VIURL Enhanced Post Card with Verification System
+// PostCard.tsx - VIURL Post Component with Verification System
 // Location: client/src/components/Post/PostCard.tsx
 
-import React, { useState } from 'react';
-import type { Post, User } from '../../types';
+import { useState } from 'react';
+import VerificationModal from '../Verification/VerificationModal';
+
+interface Author {
+  id: string;
+  username: string;
+  name: string;
+  profilePicture?: string;
+  trustScore: number;
+  verificationBadge: 'none' | 'bronze' | 'silver' | 'gold' | 'platinum';
+  isVerified?: boolean;
+}
+
+interface Post {
+  id: string;
+  author: Author;
+  content: string;
+  media?: {
+    type: 'image' | 'video' | 'gif';
+    url: string;
+  }[];
+  createdAt: string;
+  // VIURL Specific
+  verificationCount: number;
+  factCheckStatus: 'unverified' | 'true' | 'false' | 'misleading' | 'partially_true';
+  trustScore: number;
+  // Engagement
+  commentCount: number;
+  repostCount: number;
+  bookmarkCount: number;
+  // User state
+  isVerified?: boolean;
+  isReposted?: boolean;
+  isBookmarked?: boolean;
+}
 
 interface PostCardProps {
   post: Post;
-  currentUser?: User | null;
-  onVerify?: (postId: string) => void;
+  onNavigate?: (page: string, params?: any) => void;
+  onVerify?: (postId: string, data: any) => void;
   onRepost?: (postId: string) => void;
   onBookmark?: (postId: string) => void;
   onComment?: (postId: string) => void;
   onShare?: (postId: string) => void;
 }
 
-// Fact Check Status Configuration
-const FACT_CHECK_CONFIG = {
-  unverified: {
-    label: 'Unverified',
-    color: '#888888',
-    icon: '❓',
-    bgColor: 'rgba(136, 136, 136, 0.1)'
-  },
-  true: {
-    label: 'Verified True',
-    color: '#00FF00',
-    icon: '✅',
-    bgColor: 'rgba(0, 255, 0, 0.1)'
-  },
-  partially_true: {
-    label: 'Partially True',
-    color: '#FFD700',
-    icon: '⚠️',
-    bgColor: 'rgba(255, 215, 0, 0.1)'
-  },
-  false: {
-    label: 'False',
-    color: '#FF4444',
-    icon: '❌',
-    bgColor: 'rgba(255, 68, 68, 0.1)'
-  },
-  misleading: {
-    label: 'Misleading',
-    color: '#FF8800',
-    icon: '🔶',
-    bgColor: 'rgba(255, 136, 0, 0.1)'
-  }
-};
-
-// Verification Badge Configuration
-const BADGE_CONFIG = {
-  none: { label: '', color: 'transparent', icon: '' },
-  bronze: { label: 'Bronze Verifier', color: '#CD7F32', icon: '🥉' },
-  silver: { label: 'Silver Verifier', color: '#C0C0C0', icon: '🥈' },
-  gold: { label: 'Gold Verifier', color: '#FFD700', icon: '🥇' },
-  platinum: { label: 'Platinum Verifier', color: '#E5E4E2', icon: '💎' }
-};
-
-const PostCard: React.FC<PostCardProps> = ({
-  post,
-  currentUser,
-  onVerify,
-  onRepost,
-  onBookmark,
+const PostCard = ({ 
+  post, 
+  onNavigate, 
+  onVerify, 
+  onRepost, 
+  onBookmark, 
   onComment,
-  onShare
-}) => {
-  const [isVerifying, setIsVerifying] = useState(false);
-  const [showVerifyTooltip, setShowVerifyTooltip] = useState(false);
-  
-  // Check if current user has verified this post
-  const hasVerified = currentUser && post.verifications?.some(
-    (v: any) => v.toString() === currentUser._id || v._id === currentUser._id
-  );
-  
-  // Check if current user has bookmarked this post
-  const hasBookmarked = currentUser && post.bookmarkedBy?.some(
-    (b: any) => b.toString() === currentUser._id || b._id === currentUser._id
-  );
-  
-  // Check if current user has reposted
-  const hasReposted = currentUser && post.repostedBy?.some(
-    (r: any) => r.toString() === currentUser._id || r._id === currentUser._id
-  );
+  onShare 
+}: PostCardProps) => {
+  const [showVerificationModal, setShowVerificationModal] = useState(false);
+  const [isVerified, setIsVerified] = useState(post.isVerified || false);
+  const [verificationCount, setVerificationCount] = useState(post.verificationCount);
+  const [isReposted, setIsReposted] = useState(post.isReposted || false);
+  const [repostCount, setRepostCount] = useState(post.repostCount);
+  const [isBookmarked, setIsBookmarked] = useState(post.isBookmarked || false);
+  const [bookmarkCount, setBookmarkCount] = useState(post.bookmarkCount);
+  const [showShareMenu, setShowShareMenu] = useState(false);
 
-  // Get author avatar
-  const getAvatarUrl = (author: any) => {
-    if (author?.profilePicture) return author.profilePicture;
-    if (author?.avatar) return author.avatar;
-    const name = author?.name || author?.username || 'User';
-    return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=00ff00&color=000&bold=true`;
-  };
-
-  // Format date
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 1) return 'now';
-    if (diffMins < 60) return `${diffMins}m`;
-    if (diffHours < 24) return `${diffHours}h`;
-    if (diffDays < 7) return `${diffDays}d`;
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  };
-
-  // Handle verify click
-  const handleVerify = async () => {
-    if (!currentUser || isVerifying) return;
-    setIsVerifying(true);
-    try {
-      onVerify?.(post._id);
-    } finally {
-      setIsVerifying(false);
+  // Get badge icon
+  const getBadgeIcon = (badge: string): string => {
+    switch (badge) {
+      case 'platinum': return '💎';
+      case 'gold': return '🥇';
+      case 'silver': return '🥈';
+      case 'bronze': return '🥉';
+      default: return '';
     }
   };
 
-  // Get fact check status config
-  const factCheckStatus = post.factCheckStatus || 'unverified';
-  const factCheck = FACT_CHECK_CONFIG[factCheckStatus as keyof typeof FACT_CHECK_CONFIG];
-  
-  // Get author badge
-  const authorBadge = post.author?.verificationBadge || 'none';
-  const badge = BADGE_CONFIG[authorBadge as keyof typeof BADGE_CONFIG];
+  // Get fact-check badge info
+  const getFactCheckInfo = (status: string): { icon: string; label: string; color: string; bgColor: string } => {
+    switch (status) {
+      case 'true':
+        return { icon: '✅', label: 'Verified True', color: '#00FF00', bgColor: 'rgba(0, 255, 0, 0.1)' };
+      case 'false':
+        return { icon: '❌', label: 'Verified False', color: '#FF4444', bgColor: 'rgba(255, 68, 68, 0.1)' };
+      case 'misleading':
+        return { icon: '🔶', label: 'Misleading', color: '#FF8800', bgColor: 'rgba(255, 136, 0, 0.1)' };
+      case 'partially_true':
+        return { icon: '⚠️', label: 'Partially True', color: '#FFD700', bgColor: 'rgba(255, 215, 0, 0.1)' };
+      default:
+        return { icon: '', label: '', color: '', bgColor: '' };
+    }
+  };
+
+  // Format time ago
+  const getTimeAgo = (dateString: string): string => {
+    const now = new Date();
+    const date = new Date(dateString);
+    const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+    if (seconds < 60) return `${seconds}s`;
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h`;
+    if (seconds < 604800) return `${Math.floor(seconds / 86400)}d`;
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+
+  // Format count
+  const formatCount = (num: number): string => {
+    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+    return num.toString();
+  };
+
+  // Handle verify click
+  const handleVerifyClick = () => {
+    if (isVerified) {
+      // Already verified - could show details or undo
+      return;
+    }
+    setShowVerificationModal(true);
+  };
+
+  // Handle verification submit
+  const handleVerificationSubmit = async (data: any) => {
+    try {
+      // Call API
+      if (onVerify) {
+        await onVerify(post.id, data);
+      }
+      
+      // Update local state
+      setIsVerified(true);
+      setVerificationCount(prev => prev + 1);
+      
+      // Close modal
+      setShowVerificationModal(false);
+    } catch (error) {
+      console.error('Verification failed:', error);
+      throw error;
+    }
+  };
+
+  // Handle repost
+  const handleRepost = () => {
+    setIsReposted(!isReposted);
+    setRepostCount(prev => isReposted ? prev - 1 : prev + 1);
+    if (onRepost) onRepost(post.id);
+  };
+
+  // Handle bookmark
+  const handleBookmark = () => {
+    setIsBookmarked(!isBookmarked);
+    setBookmarkCount(prev => isBookmarked ? prev - 1 : prev + 1);
+    if (onBookmark) onBookmark(post.id);
+  };
+
+  // Handle comment
+  const handleComment = () => {
+    if (onComment) onComment(post.id);
+  };
+
+  // Handle share
+  const handleShare = () => {
+    setShowShareMenu(!showShareMenu);
+  };
+
+  // Copy link
+  const copyLink = () => {
+    navigator.clipboard.writeText(`https://viurl.com/post/${post.id}`);
+    setShowShareMenu(false);
+    // Could show toast notification
+  };
+
+  const factCheck = getFactCheckInfo(post.factCheckStatus);
+
+  const styles: Record<string, React.CSSProperties> = {
+    card: {
+      backgroundColor: '#000',
+      borderBottom: '1px solid #222',
+      padding: '16px',
+      cursor: 'pointer',
+      transition: 'background-color 0.2s',
+    },
+    cardInner: {
+      display: 'flex',
+      gap: '12px',
+    },
+    // Avatar with trust ring
+    avatarContainer: {
+      position: 'relative',
+      width: '48px',
+      height: '48px',
+      flexShrink: 0,
+    },
+    trustRing: {
+      position: 'absolute',
+      top: '-3px',
+      left: '-3px',
+      width: '54px',
+      height: '54px',
+      borderRadius: '50%',
+      background: `conic-gradient(#00FF00 ${post.author.trustScore * 3.6}deg, #333 0deg)`,
+      padding: '3px',
+    },
+    trustRingInner: {
+      width: '100%',
+      height: '100%',
+      borderRadius: '50%',
+      backgroundColor: '#000',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    avatar: {
+      width: '44px',
+      height: '44px',
+      borderRadius: '50%',
+      backgroundColor: '#333',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      color: '#00FF00',
+      fontWeight: 700,
+      fontSize: '18px',
+      overflow: 'hidden',
+    },
+    avatarImg: {
+      width: '100%',
+      height: '100%',
+      objectFit: 'cover',
+    },
+    // Content
+    content: {
+      flex: 1,
+      minWidth: 0,
+    },
+    header: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '4px',
+      marginBottom: '4px',
+      flexWrap: 'wrap',
+    },
+    name: {
+      color: '#fff',
+      fontWeight: 700,
+      fontSize: '15px',
+    },
+    badge: {
+      fontSize: '14px',
+    },
+    username: {
+      color: '#888',
+      fontSize: '15px',
+    },
+    dot: {
+      color: '#888',
+      fontSize: '15px',
+    },
+    time: {
+      color: '#888',
+      fontSize: '15px',
+    },
+    moreBtn: {
+      marginLeft: 'auto',
+      background: 'none',
+      border: 'none',
+      color: '#888',
+      fontSize: '18px',
+      cursor: 'pointer',
+      padding: '4px 8px',
+      borderRadius: '50%',
+      transition: 'all 0.2s',
+    },
+    // Post content
+    postText: {
+      color: '#e7e9ea',
+      fontSize: '15px',
+      lineHeight: 1.5,
+      marginBottom: '12px',
+      whiteSpace: 'pre-wrap',
+      wordBreak: 'break-word',
+    },
+    // Media
+    mediaContainer: {
+      borderRadius: '16px',
+      overflow: 'hidden',
+      marginBottom: '12px',
+      border: '1px solid #333',
+    },
+    mediaImage: {
+      width: '100%',
+      maxHeight: '500px',
+      objectFit: 'cover',
+      display: 'block',
+    },
+    // Fact check badge
+    factCheckBadge: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: '6px',
+      padding: '6px 12px',
+      borderRadius: '8px',
+      fontSize: '13px',
+      fontWeight: 600,
+      marginBottom: '12px',
+      backgroundColor: factCheck.bgColor,
+      color: factCheck.color,
+      border: `1px solid ${factCheck.color}30`,
+    },
+    factCheckIcon: {
+      fontSize: '14px',
+    },
+    // Trust score badge
+    trustBadge: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: '4px',
+      padding: '4px 8px',
+      borderRadius: '6px',
+      fontSize: '12px',
+      backgroundColor: '#00FF0015',
+      color: '#00FF00',
+      marginLeft: '8px',
+    },
+    // Actions
+    actions: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      marginTop: '12px',
+      maxWidth: '425px',
+    },
+    actionBtn: (active: boolean, color: string) => ({
+      display: 'flex',
+      alignItems: 'center',
+      gap: '8px',
+      background: 'none',
+      border: 'none',
+      color: active ? color : '#888',
+      fontSize: '14px',
+      cursor: 'pointer',
+      padding: '8px',
+      borderRadius: '9999px',
+      transition: 'all 0.2s',
+    }),
+    actionIcon: {
+      fontSize: '18px',
+    },
+    // Verify button (special)
+    verifyBtn: (active: boolean) => ({
+      display: 'flex',
+      alignItems: 'center',
+      gap: '6px',
+      background: active ? '#00FF00' : 'transparent',
+      border: active ? 'none' : '1px solid #00FF00',
+      color: active ? '#000' : '#00FF00',
+      fontSize: '14px',
+      fontWeight: 600,
+      cursor: 'pointer',
+      padding: '6px 14px',
+      borderRadius: '9999px',
+      transition: 'all 0.2s',
+    }),
+    // Share menu
+    shareMenu: {
+      position: 'absolute',
+      bottom: '100%',
+      right: 0,
+      backgroundColor: '#000',
+      border: '1px solid #333',
+      borderRadius: '12px',
+      padding: '8px 0',
+      minWidth: '200px',
+      zIndex: 100,
+      boxShadow: '0 0 20px rgba(0, 0, 0, 0.5)',
+    },
+    shareMenuItem: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '12px',
+      width: '100%',
+      padding: '12px 16px',
+      background: 'none',
+      border: 'none',
+      color: '#fff',
+      fontSize: '15px',
+      cursor: 'pointer',
+      textAlign: 'left',
+      transition: 'background-color 0.2s',
+    },
+    // Verification count
+    verificationStats: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '16px',
+      padding: '8px 0',
+      borderTop: '1px solid #222',
+      marginTop: '8px',
+      fontSize: '13px',
+      color: '#888',
+    },
+    statItem: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '4px',
+    },
+    statValue: {
+      color: '#fff',
+      fontWeight: 600,
+    },
+  };
 
   return (
-    <article style={styles.postCard}>
-      {/* Repost Header (if applicable) */}
-      {post.repostedBy && post.repostedBy.length > 0 && (
-        <div style={styles.repostHeader}>
-          <span style={styles.repostIcon}>🔄</span>
-          <span style={styles.repostText}>Reposted</span>
-        </div>
-      )}
-
-      <div style={styles.postContent}>
-        {/* Avatar */}
-        <div style={styles.avatarContainer}>
-          <img
-            src={getAvatarUrl(post.author)}
-            alt={post.author?.username || 'User'}
-            style={styles.avatar}
-          />
-          {/* Trust Score Ring */}
+    <>
+      <article
+        style={styles.card}
+        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#080808'}
+        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#000'}
+        onClick={() => onNavigate && onNavigate('post', { postId: post.id })}
+      >
+        <div style={styles.cardInner}>
+          {/* Avatar with Trust Ring */}
           <div 
-            style={{
-              ...styles.trustRing,
-              background: `conic-gradient(#00FF00 ${(post.author?.trustScore || 0) * 3.6}deg, #333 0deg)`
+            style={styles.avatarContainer}
+            onClick={(e) => {
+              e.stopPropagation();
+              onNavigate && onNavigate('profile', { userId: post.author.username });
             }}
-            title={`Trust Score: ${post.author?.trustScore || 0}`}
-          />
-        </div>
-
-        {/* Main Content */}
-        <div style={styles.mainContent}>
-          {/* Header */}
-          <div style={styles.postHeader}>
-            <div style={styles.authorInfo}>
-              <span style={styles.authorName}>
-                {post.author?.name || post.author?.username}
-              </span>
-              {post.author?.isVerified && (
-                <span style={styles.verifiedBadge} title="Verified Account">✓</span>
-              )}
-              {badge.icon && (
-                <span style={styles.authorBadge} title={badge.label}>
-                  {badge.icon}
-                </span>
-              )}
-              <span style={styles.authorHandle}>
-                @{post.author?.username}
-              </span>
-              <span style={styles.dot}>·</span>
-              <span style={styles.postDate}>
-                {formatDate(post.createdAt)}
-              </span>
-            </div>
-            
-            {/* More Options */}
-            <button style={styles.moreBtn} title="More options">
-              •••
-            </button>
-          </div>
-
-          {/* Post Text */}
-          <div style={styles.postText}>
-            {post.content}
-          </div>
-
-          {/* Media (if any) */}
-          {post.media && post.media.length > 0 && (
-            <div style={styles.mediaContainer}>
-              {post.media.map((media: any, index: number) => (
-                <img
-                  key={index}
-                  src={media.url}
-                  alt={media.alt || 'Post media'}
-                  style={styles.mediaImage}
-                />
-              ))}
-            </div>
-          )}
-
-          {/* Fact Check Badge */}
-          {factCheckStatus !== 'unverified' && (
-            <div 
-              style={{
-                ...styles.factCheckBadge,
-                backgroundColor: factCheck.bgColor,
-                borderColor: factCheck.color
-              }}
-            >
-              <span>{factCheck.icon}</span>
-              <span style={{ color: factCheck.color, fontWeight: 600 }}>
-                {factCheck.label}
-              </span>
-              {post.factCheckDetails?.explanation && (
-                <span style={styles.factCheckExplanation}>
-                  - {post.factCheckDetails.explanation}
-                </span>
-              )}
-            </div>
-          )}
-
-          {/* Action Bar */}
-          <div style={styles.actionBar}>
-            {/* Comment */}
-            <button 
-              style={styles.actionBtn}
-              onClick={() => onComment?.(post._id)}
-              title="Comment"
-            >
-              <span style={styles.actionIcon}>💬</span>
-              <span style={styles.actionCount}>
-                {post.comments?.length || 0}
-              </span>
-            </button>
-
-            {/* Repost */}
-            <button 
-              style={{
-                ...styles.actionBtn,
-                ...(hasReposted ? styles.actionBtnActive : {})
-              }}
-              onClick={() => onRepost?.(post._id)}
-              title="Repost"
-            >
-              <span style={styles.actionIcon}>🔄</span>
-              <span style={{
-                ...styles.actionCount,
-                color: hasReposted ? '#00FF00' : 'inherit'
-              }}>
-                {post.reposts || 0}
-              </span>
-            </button>
-
-            {/* VERIFY - The VIURL Special Button! */}
-            <div 
-              style={styles.verifyContainer}
-              onMouseEnter={() => setShowVerifyTooltip(true)}
-              onMouseLeave={() => setShowVerifyTooltip(false)}
-            >
-              <button 
-                style={{
-                  ...styles.actionBtn,
-                  ...styles.verifyBtn,
-                  ...(hasVerified ? styles.verifyBtnActive : {})
-                }}
-                onClick={handleVerify}
-                disabled={isVerifying || !currentUser}
-                title={hasVerified ? "You verified this" : "Verify this post"}
-              >
-                <span style={{
-                  ...styles.verifyIcon,
-                  ...(hasVerified ? styles.verifyIconActive : {})
-                }}>
-                  {hasVerified ? '✅' : '✓'}
-                </span>
-                <span style={{
-                  ...styles.actionCount,
-                  ...(hasVerified ? styles.verifyCountActive : {})
-                }}>
-                  {post.verificationCount || post.verifications?.length || 0}
-                </span>
-              </button>
-              
-              {/* Verify Tooltip */}
-              {showVerifyTooltip && !hasVerified && (
-                <div style={styles.verifyTooltip}>
-                  <strong>Verify this post</strong>
-                  <p>Confirm this information is accurate</p>
-                  <small>Earn V-TKN for accurate verifications!</small>
+          >
+            <div style={styles.trustRing}>
+              <div style={styles.trustRingInner}>
+                <div style={styles.avatar}>
+                  {post.author.profilePicture ? (
+                    <img src={post.author.profilePicture} alt="" style={styles.avatarImg} />
+                  ) : (
+                    post.author.name.charAt(0).toUpperCase()
+                  )}
                 </div>
-              )}
+              </div>
             </div>
-
-            {/* Bookmark */}
-            <button 
-              style={{
-                ...styles.actionBtn,
-                ...(hasBookmarked ? styles.actionBtnActive : {})
-              }}
-              onClick={() => onBookmark?.(post._id)}
-              title={hasBookmarked ? "Remove bookmark" : "Bookmark"}
-            >
-              <span style={styles.actionIcon}>
-                {hasBookmarked ? '🔖' : '📑'}
-              </span>
-            </button>
-
-            {/* Share */}
-            <button 
-              style={styles.actionBtn}
-              onClick={() => onShare?.(post._id)}
-              title="Share"
-            >
-              <span style={styles.actionIcon}>📤</span>
-            </button>
           </div>
 
-          {/* Token Rewards Display (if any) */}
-          {post.tokenRewards && post.tokenRewards.total > 0 && (
-            <div style={styles.tokenRewards}>
-              <span style={styles.tokenIcon}>💰</span>
-              <span style={styles.tokenAmount}>
-                {post.tokenRewards.total} V-TKN earned
+          {/* Content */}
+          <div style={styles.content}>
+            {/* Header */}
+            <div style={styles.header}>
+              <span 
+                style={styles.name}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onNavigate && onNavigate('profile', { userId: post.author.username });
+                }}
+              >
+                {post.author.name}
               </span>
+              {post.author.verificationBadge !== 'none' && (
+                <span style={styles.badge}>{getBadgeIcon(post.author.verificationBadge)}</span>
+              )}
+              <span style={styles.username}>@{post.author.username}</span>
+              <span style={styles.dot}>·</span>
+              <span style={styles.time}>{getTimeAgo(post.createdAt)}</span>
+              {post.author.trustScore >= 90 && (
+                <span style={styles.trustBadge}>
+                  <span>✓</span> {post.author.trustScore}%
+                </span>
+              )}
+              <button
+                style={styles.moreBtn}
+                onClick={(e) => e.stopPropagation()}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#1a1a1a';
+                  e.currentTarget.style.color = '#00FF00';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                  e.currentTarget.style.color = '#888';
+                }}
+              >
+                •••
+              </button>
             </div>
-          )}
-        </div>
-      </div>
-    </article>
-  );
-};
 
-// Styles
-const styles: { [key: string]: React.CSSProperties } = {
-  postCard: {
-    backgroundColor: '#000000',
-    borderBottom: '1px solid #2a2a2a',
-    padding: '12px 16px',
-    cursor: 'pointer',
-    transition: 'background-color 0.2s ease',
-  },
-  repostHeader: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    marginLeft: '52px',
-    marginBottom: '4px',
-    fontSize: '13px',
-    color: '#888',
-  },
-  repostIcon: {
-    fontSize: '12px',
-  },
-  repostText: {
-    fontWeight: 500,
-  },
-  postContent: {
-    display: 'flex',
-    gap: '12px',
-  },
-  avatarContainer: {
-    position: 'relative',
-    flexShrink: 0,
-  },
-  avatar: {
-    width: '48px',
-    height: '48px',
-    borderRadius: '50%',
-    objectFit: 'cover',
-  },
-  trustRing: {
-    position: 'absolute',
-    bottom: '-2px',
-    right: '-2px',
-    width: '18px',
-    height: '18px',
-    borderRadius: '50%',
-    border: '2px solid #000',
-  },
-  mainContent: {
-    flex: 1,
-    minWidth: 0,
-  },
-  postHeader: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: '4px',
-  },
-  authorInfo: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '4px',
-    flexWrap: 'wrap',
-  },
-  authorName: {
-    fontWeight: 700,
-    color: '#ffffff',
-    fontSize: '15px',
-  },
-  verifiedBadge: {
-    backgroundColor: '#00FF00',
-    color: '#000',
-    borderRadius: '50%',
-    width: '16px',
-    height: '16px',
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: '10px',
-    fontWeight: 'bold',
-  },
-  authorBadge: {
-    fontSize: '14px',
-  },
-  authorHandle: {
-    color: '#888888',
-    fontSize: '15px',
-  },
-  dot: {
-    color: '#888888',
-  },
-  postDate: {
-    color: '#888888',
-    fontSize: '15px',
-  },
-  moreBtn: {
-    background: 'none',
-    border: 'none',
-    color: '#888',
-    cursor: 'pointer',
-    padding: '4px 8px',
-    borderRadius: '50%',
-    fontSize: '14px',
-    letterSpacing: '1px',
-  },
-  postText: {
-    color: '#ffffff',
-    fontSize: '15px',
-    lineHeight: '1.5',
-    whiteSpace: 'pre-wrap',
-    wordBreak: 'break-word',
-    marginBottom: '12px',
-  },
-  mediaContainer: {
-    marginTop: '12px',
-    borderRadius: '16px',
-    overflow: 'hidden',
-  },
-  mediaImage: {
-    width: '100%',
-    maxHeight: '500px',
-    objectFit: 'cover',
-    borderRadius: '16px',
-    border: '1px solid #2a2a2a',
-  },
-  factCheckBadge: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '8px',
-    padding: '8px 12px',
-    borderRadius: '8px',
-    border: '1px solid',
-    marginBottom: '12px',
-    fontSize: '13px',
-  },
-  factCheckExplanation: {
-    color: '#888',
-    fontSize: '12px',
-  },
-  actionBar: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    maxWidth: '425px',
-    marginTop: '12px',
-  },
-  actionBtn: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    background: 'none',
-    border: 'none',
-    color: '#888888',
-    cursor: 'pointer',
-    padding: '8px',
-    borderRadius: '50px',
-    transition: 'all 0.2s ease',
-    fontSize: '13px',
-  },
-  actionBtnActive: {
-    color: '#00FF00',
-  },
-  actionIcon: {
-    fontSize: '18px',
-  },
-  actionCount: {
-    fontSize: '13px',
-    minWidth: '20px',
-  },
-  verifyContainer: {
-    position: 'relative',
-  },
-  verifyBtn: {
-    position: 'relative',
-  },
-  verifyBtnActive: {
-    color: '#00FF00',
-  },
-  verifyIcon: {
-    fontSize: '18px',
-    transition: 'all 0.3s ease',
-  },
-  verifyIconActive: {
-    color: '#00FF00',
-    textShadow: '0 0 10px rgba(0, 255, 0, 0.5)',
-  },
-  verifyCountActive: {
-    color: '#00FF00',
-    fontWeight: 600,
-  },
-  verifyTooltip: {
-    position: 'absolute',
-    bottom: '100%',
-    left: '50%',
-    transform: 'translateX(-50%)',
-    backgroundColor: '#1a1a1a',
-    border: '1px solid #00FF00',
-    borderRadius: '8px',
-    padding: '12px',
-    minWidth: '200px',
-    zIndex: 100,
-    textAlign: 'center',
-    boxShadow: '0 4px 20px rgba(0, 255, 0, 0.2)',
-  },
-  tokenRewards: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '6px',
-    marginTop: '8px',
-    padding: '6px 12px',
-    backgroundColor: 'rgba(0, 255, 0, 0.1)',
-    borderRadius: '20px',
-    width: 'fit-content',
-    fontSize: '12px',
-    color: '#00FF00',
-  },
-  tokenIcon: {
-    fontSize: '14px',
-  },
-  tokenAmount: {
-    fontWeight: 600,
-  },
+            {/* Post Text */}
+            <p style={styles.postText}>{post.content}</p>
+
+            {/* Media */}
+            {post.media && post.media.length > 0 && (
+              <div style={styles.mediaContainer}>
+                {post.media[0].type === 'image' && (
+                  <img src={post.media[0].url} alt="" style={styles.mediaImage} />
+                )}
+              </div>
+            )}
+
+            {/* Fact Check Badge */}
+            {post.factCheckStatus !== 'unverified' && (
+              <div style={styles.factCheckBadge}>
+                <span style={styles.factCheckIcon}>{factCheck.icon}</span>
+                <span>{factCheck.label}</span>
+                <span style={{ color: '#888', fontWeight: 400 }}>
+                  · {formatCount(verificationCount)} verifications
+                </span>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div style={styles.actions} onClick={(e) => e.stopPropagation()}>
+              {/* Comment */}
+              <button
+                style={styles.actionBtn(false, '#1D9BF0')}
+                onClick={handleComment}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = '#1D9BF0';
+                  e.currentTarget.style.backgroundColor = 'rgba(29, 155, 240, 0.1)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = '#888';
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                }}
+              >
+                <span style={styles.actionIcon}>💬</span>
+                {post.commentCount > 0 && <span>{formatCount(post.commentCount)}</span>}
+              </button>
+
+              {/* Repost */}
+              <button
+                style={styles.actionBtn(isReposted, '#00BA7C')}
+                onClick={handleRepost}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = '#00BA7C';
+                  e.currentTarget.style.backgroundColor = 'rgba(0, 186, 124, 0.1)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = isReposted ? '#00BA7C' : '#888';
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                }}
+              >
+                <span style={styles.actionIcon}>{isReposted ? '🔄' : '🔁'}</span>
+                {repostCount > 0 && <span>{formatCount(repostCount)}</span>}
+              </button>
+
+              {/* VERIFY - The Main VIURL Action */}
+              <button
+                style={styles.verifyBtn(isVerified)}
+                onClick={handleVerifyClick}
+                onMouseEnter={(e) => {
+                  if (!isVerified) {
+                    e.currentTarget.style.backgroundColor = '#00FF00';
+                    e.currentTarget.style.color = '#000';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!isVerified) {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                    e.currentTarget.style.color = '#00FF00';
+                  }
+                }}
+              >
+                <span>✓</span>
+                <span>{isVerified ? 'Verified' : 'Verify'}</span>
+                {verificationCount > 0 && <span>({formatCount(verificationCount)})</span>}
+              </button>
+
+              {/* Bookmark */}
+              <button
+                style={styles.actionBtn(isBookmarked, '#F91880')}
+                onClick={handleBookmark}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = '#F91880';
+                  e.currentTarget.style.backgroundColor = 'rgba(249, 24, 128, 0.1)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = isBookmarked ? '#F91880' : '#888';
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                }}
+              >
+                <span style={styles.actionIcon}>{isBookmarked ? '🔖' : '📑'}</span>
+              </button>
+
+              {/* Share */}
+              <div style={{ position: 'relative' }}>
+                <button
+                  style={styles.actionBtn(false, '#1D9BF0')}
+                  onClick={handleShare}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.color = '#1D9BF0';
+                    e.currentTarget.style.backgroundColor = 'rgba(29, 155, 240, 0.1)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.color = '#888';
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                  }}
+                >
+                  <span style={styles.actionIcon}>↗️</span>
+                </button>
+
+                {/* Share Menu */}
+                {showShareMenu && (
+                  <div style={styles.shareMenu}>
+                    <button
+                      style={styles.shareMenuItem}
+                      onClick={copyLink}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#111'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                    >
+                      <span>🔗</span> Copy link
+                    </button>
+                    <button
+                      style={styles.shareMenuItem}
+                      onClick={() => {
+                        window.open(`https://twitter.com/intent/tweet?url=https://viurl.com/post/${post.id}`, '_blank');
+                        setShowShareMenu(false);
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#111'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                    >
+                      <span>🐦</span> Share on X
+                    </button>
+                    <button
+                      style={styles.shareMenuItem}
+                      onClick={() => setShowShareMenu(false)}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#111'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                    >
+                      <span>✉️</span> Send via DM
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      {/* Verification Modal */}
+      <VerificationModal
+        isOpen={showVerificationModal}
+        onClose={() => setShowVerificationModal(false)}
+        post={{
+          id: post.id,
+          content: post.content,
+          author: {
+            username: post.author.username,
+            name: post.author.name,
+            profilePicture: post.author.profilePicture,
+          },
+        }}
+        onSubmit={handleVerificationSubmit}
+      />
+    </>
+  );
 };
 
 export default PostCard;
