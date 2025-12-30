@@ -1,4 +1,4 @@
-// VIURL TypeScript Types
+// VIURL TypeScript Types - Complete
 
 export interface User {
   _id: string;
@@ -7,6 +7,7 @@ export interface User {
   username: string;
   name: string;
   profilePicture?: string;
+  avatar?: string;
   bannerImage?: string;
   bio?: string;
   location?: string;
@@ -14,6 +15,7 @@ export interface User {
   trustScore: number;
   vtokens: number;
   badge?: 'bronze' | 'silver' | 'gold' | 'diamond';
+  verificationBadge?: string;
   followers: string[];
   following: string[];
   verifiedPosts?: string[];
@@ -23,6 +25,7 @@ export interface User {
   isVerified?: boolean;
   loginStreak?: number;
   lastLoginDate?: string;
+  notifications?: number;
 }
 
 export interface UserState {
@@ -47,6 +50,11 @@ export interface Post {
   verifications: string[];
   verificationStatus?: 'pending' | 'verified' | 'disputed' | 'false';
   verificationScore?: number;
+  verificationCount?: number;
+  factCheckStatus?: string;
+  commentCount?: number;
+  likeCount?: number;
+  shareCount?: number;
   hashtags?: string[];
   mentions?: string[];
   poll?: Poll;
@@ -164,4 +172,94 @@ export interface PostCardProps {
 export interface CreatePostProps {
   onPostCreated?: () => void;
   replyTo?: Post;
+  placeholder?: string;
+}
+
+export interface Verification {
+  _id: string;
+  id?: string;
+  post: string;
+  verifier: User;
+  verdict: string;
+  confidence: number;
+  evidence: Evidence[];
+  reasoning: string;
+  tokensEarned: number;
+  createdAt: string;
+}
+
+export interface Evidence {
+  type: string;
+  url?: string;
+  title: string;
+  description?: string;
+}
+
+export interface VerificationSubmission {
+  postId: string;
+  verdict: string;
+  confidence: number;
+  evidence: Evidence[];
+  reasoning: string;
+}
+
+export interface CreatePostData {
+  content: string;
+  media?: File[];
+  poll?: object;
+}
+
+export interface EditProfileData {
+  name?: string;
+  bio?: string;
+  location?: string;
+  website?: string;
+  profilePicture?: string;
+}
+
+export interface TokenTransaction {
+  _id: string;
+  type: string;
+  amount: number;
+  description: string;
+  createdAt: string;
+}
+
+export interface ApiResponse<T> {
+  success: boolean;
+  data?: T;
+  error?: string;
+  message?: string;
+}
+
+export interface PaginatedResponse<T> {
+  data: T[];
+  page: number;
+  limit: number;
+  total: number;
+  hasMore: boolean;
+}
+
+export interface SearchResult {
+  users: User[];
+  posts: Post[];
+  hashtags: TrendingTopic[];
+}
+
+export interface TrendingTopic {
+  hashtag: string;
+  postCount: number;
+  category?: string;
+}
+
+export interface LeaderboardEntry {
+  rank: number;
+  user: User;
+  score: number;
+}
+
+export interface SendMessageData {
+  conversationId?: string;
+  recipientId?: string;
+  content: string;
 }
