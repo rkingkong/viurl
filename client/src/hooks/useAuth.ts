@@ -1,51 +1,62 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAppDispatch } from './useRedux';
-import { loginUser, registerUser, logout } from '../store/slices/authSlice';
-import type { LoginCredentials, RegisterCredentials } from '../types';
+import { useCallback } from 'react';
+import { useAppDispatch, useAppSelector } from './useRedux';
+import { login, register, logout, checkAuth } from '../store/slices/authSlice';
+import type { LoginCredentials, RegisterData } from '../types';
 
-export const useAuth = () => {
+export function useAuth() {
   const dispatch = useAppDispatch();
-  const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { user, loading, error, isAuthenticated, token } = useAppSelector(
+    (state) => state.auth
+  );
 
-  const login = async (credentials: LoginCredentials) => {
-    setLoading(true);
-    setError(null);
-    try {
-      await dispatch(loginUser(credentials)).unwrap();
-      navigate('/');
-    } catch (err: any) {
-      setError(err.message || 'Login failed');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const handleLogin = useCallback(
+    async (credentials: LoginCredentials) => {
+      try {
+        const result = await dispatch(login(credentials)).unwrap();
+        return { success: true, data: result };
+      } catch (err) {
+        return { success: false, error: String(err) };
+      }
+    },
+    [dispatch]
+  );
 
-  const register = async (credentials: RegisterCredentials) => {
-    setLoading(true);
-    setError(null);
-    try {
-      await dispatch(registerUser(credentials)).unwrap();
-      navigate('/');
-    } catch (err: any) {
-      setError(err.message || 'Registration failed');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const handleRegister = useCallback(
+    async (data: RegisterData) => {
+      try {
+        const result = await dispatch(register(data)).unwrap();
+        return { success: true, data: result };
+      } catch (err) {
+        return { success: false, error: String(err) };
+      }
+    },
+    [dispatch]
+  );
 
-  const signOut = () => {
+  const handleLogout = useCallback(() => {
     dispatch(logout());
-    navigate('/login');
-  };
+  }, [dispatch]);
+
+  const handleCheckAuth = useCallback(async () => {
+    try {
+      const result = await dispatch(checkAuth()).unwrap();
+      return { success: true, data: result };
+    } catch {
+      return { success: false, error: 'Not authenticated' };
+    }
+  }, [dispatch]);
 
   return {
-    login,
-    register,
-    signOut,
+    user,
     loading,
-    error
+    error,
+    isAuthenticated,
+    token,
+    login: handleLogin,
+    register: handleRegister,
+    logout: handleLogout,
+    checkAuth: handleCheckAuth,
   };
-};
+}
+
+export default useAuth;
