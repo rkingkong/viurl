@@ -3,7 +3,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAppSelector } from '../hooks/useRedux';
-import Layout from '../components/Layout/Layout';
 import PostCard from '../components/Post/PostCard';
 import type { Post, User } from '../types';
 
@@ -30,16 +29,47 @@ const Profile: React.FC<ProfileProps> = ({ userId, onNavigate }) => {
   const [showEditModal, setShowEditModal] = useState(false);
 
   // Determine if viewing own profile
-  const isOwnProfile = !userId || userId === currentUser?._id;
+  const isOwnProfile = !userId || userId === currentUser?._id || userId === currentUser?.username;
+  
+  // Use currentUser directly for own profile, fetched user for others
   const displayUser = isOwnProfile ? currentUser : profileUser;
 
   // Fetch profile data
   useEffect(() => {
     const fetchProfile = async () => {
       setLoading(true);
+      
       try {
+        // If viewing own profile and we have currentUser, use that
+        if (isOwnProfile && currentUser) {
+          setProfileUser(currentUser);
+          
+          // Still fetch posts for the current user
+          const token = localStorage.getItem('token');
+          const postsResponse = await fetch(`${API_BASE}/api/users/${currentUser._id}/posts`, {
+            headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+          });
+          
+          if (postsResponse.ok) {
+            const postsData = await postsResponse.json();
+            setPosts(postsData.posts || []);
+          }
+          
+          setLoading(false);
+          return;
+        }
+
+        // If no userId and no currentUser, show error
+        if (!userId && !currentUser) {
+          setLoading(false);
+          return;
+        }
+
         const targetId = userId || currentUser?._id;
-        if (!targetId) return;
+        if (!targetId) {
+          setLoading(false);
+          return;
+        }
 
         const token = localStorage.getItem('token');
         
@@ -52,6 +82,8 @@ const Profile: React.FC<ProfileProps> = ({ userId, onNavigate }) => {
           const userData = await userResponse.json();
           setProfileUser(userData.user || userData);
           setIsFollowing(userData.isFollowing || false);
+        } else {
+          setProfileUser(null);
         }
 
         // Fetch user posts
@@ -71,7 +103,7 @@ const Profile: React.FC<ProfileProps> = ({ userId, onNavigate }) => {
     };
 
     fetchProfile();
-  }, [userId, currentUser?._id]);
+  }, [userId, currentUser?._id, currentUser, isOwnProfile]);
 
   // Handle follow/unfollow
   const handleFollowToggle = async () => {
@@ -80,9 +112,7 @@ const Profile: React.FC<ProfileProps> = ({ userId, onNavigate }) => {
     setFollowLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const endpoint = isFollowing 
-        ? `/api/users/${profileUser._id}/follow`
-        : `/api/users/${profileUser._id}/follow`;
+      const endpoint = `/api/users/${profileUser._id}/follow`;
       
       const response = await fetch(`${API_BASE}${endpoint}`, {
         method: isFollowing ? 'DELETE' : 'POST',
@@ -156,12 +186,31 @@ const Profile: React.FC<ProfileProps> = ({ userId, onNavigate }) => {
 
   const badge = getBadgeInfo(displayUser?.verificationBadge);
 
+  // Show login prompt if not authenticated and viewing own profile
+  if (!isAuthenticated && isOwnProfile && !userId) {
+    return (
+      <div style={styles.loginPrompt}>
+        <span style={styles.loginPromptIcon}>👤</span>
+        <h2 style={styles.loginPromptTitle}>View Your Profile</h2>
+        <p style={styles.loginPromptText}>Log in to see your profile and track your verifications.</p>
+        <button 
+          style={styles.loginPromptBtn}
+          onClick={() => onNavigate?.('login')}
+        >
+          Log in
+        </button>
+        <button 
+          style={styles.signupPromptBtn}
+          onClick={() => onNavigate?.('register')}
+        >
+          Sign up
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <Layout 
-      currentPage="profile" 
-      onNavigate={onNavigate}
-      
-    >
+    <>
       {loading ? (
         <div style={styles.loadingContainer}>
           <div style={styles.spinner} />
@@ -290,7 +339,7 @@ const Profile: React.FC<ProfileProps> = ({ userId, onNavigate }) => {
                 </a>
               )}
               <span style={styles.metaItem}>
-                <span>📅</span> {formatJoinDate(displayUser.joinedDate)}
+                <span>📅</span> {formatJoinDate(displayUser.joinedDate || displayUser.createdAt)}
               </span>
             </div>
 
@@ -349,7 +398,7 @@ const Profile: React.FC<ProfileProps> = ({ userId, onNavigate }) => {
             <div style={styles.statCard}>
               <div style={styles.statIcon}>{badge?.icon || '🏅'}</div>
               <div style={styles.statContent}>
-                <div style={styles.statValue}>
+                <div style={{...styles.statValue, fontSize: '14px'}}>
                   {badge?.label || 'No Badge'}
                 </div>
                 <div style={styles.statLabel}>Verifier Level</div>
@@ -368,7 +417,11 @@ const Profile: React.FC<ProfileProps> = ({ userId, onNavigate }) => {
                 }}
                 onClick={() => setActiveTab(tab)}
               >
-                <span style={styles.tabText}>
+                <span style={{
+                  ...styles.tabText,
+                  color: activeTab === tab ? '#fff' : '#888',
+                  fontWeight: activeTab === tab ? 700 : 500,
+                }}>
                   {tab.charAt(0).toUpperCase() + tab.slice(1)}
                 </span>
                 {activeTab === tab && <div style={styles.tabIndicator} />}
@@ -411,7 +464,6 @@ const Profile: React.FC<ProfileProps> = ({ userId, onNavigate }) => {
                 <PostCard
                   key={post._id}
                   post={post}
-                  
                 />
               ))
             )}
@@ -420,7 +472,7 @@ const Profile: React.FC<ProfileProps> = ({ userId, onNavigate }) => {
       )}
 
       {/* Edit Profile Modal */}
-      {showEditModal && (
+      {showEditModal && displayUser && (
         <div style={styles.modalOverlay} onClick={() => setShowEditModal(false)}>
           <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
             <div style={styles.modalHeader}>
@@ -454,7 +506,7 @@ const Profile: React.FC<ProfileProps> = ({ userId, onNavigate }) => {
               {/* Form Fields */}
               <div style={styles.editForm}>
                 <div style={styles.editField}>
-                  <label>Name</label>
+                  <label style={styles.editLabel}>Name</label>
                   <input 
                     type="text" 
                     defaultValue={displayUser?.name}
@@ -462,7 +514,7 @@ const Profile: React.FC<ProfileProps> = ({ userId, onNavigate }) => {
                   />
                 </div>
                 <div style={styles.editField}>
-                  <label>Bio</label>
+                  <label style={styles.editLabel}>Bio</label>
                   <textarea 
                     defaultValue={displayUser?.bio}
                     style={styles.editTextarea}
@@ -470,7 +522,7 @@ const Profile: React.FC<ProfileProps> = ({ userId, onNavigate }) => {
                   />
                 </div>
                 <div style={styles.editField}>
-                  <label>Location</label>
+                  <label style={styles.editLabel}>Location</label>
                   <input 
                     type="text" 
                     defaultValue={displayUser?.location}
@@ -478,7 +530,7 @@ const Profile: React.FC<ProfileProps> = ({ userId, onNavigate }) => {
                   />
                 </div>
                 <div style={styles.editField}>
-                  <label>Website</label>
+                  <label style={styles.editLabel}>Website</label>
                   <input 
                     type="url" 
                     defaultValue={displayUser?.website}
@@ -490,12 +542,56 @@ const Profile: React.FC<ProfileProps> = ({ userId, onNavigate }) => {
           </div>
         </div>
       )}
-    </Layout>
+    </>
   );
 };
 
 // Styles
 const styles: { [key: string]: React.CSSProperties } = {
+  loginPrompt: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '80px 20px',
+    gap: '16px',
+    textAlign: 'center',
+  },
+  loginPromptIcon: {
+    fontSize: '64px',
+  },
+  loginPromptTitle: {
+    fontSize: '24px',
+    fontWeight: 800,
+    color: '#fff',
+    margin: 0,
+  },
+  loginPromptText: {
+    fontSize: '15px',
+    color: '#888',
+    maxWidth: '300px',
+  },
+  loginPromptBtn: {
+    padding: '12px 32px',
+    backgroundColor: '#00FF00',
+    color: '#000',
+    border: 'none',
+    borderRadius: '25px',
+    fontSize: '16px',
+    fontWeight: 700,
+    cursor: 'pointer',
+    marginTop: '8px',
+  },
+  signupPromptBtn: {
+    padding: '12px 32px',
+    backgroundColor: 'transparent',
+    color: '#00FF00',
+    border: '1px solid #00FF00',
+    borderRadius: '25px',
+    fontSize: '16px',
+    fontWeight: 700,
+    cursor: 'pointer',
+  },
   loadingContainer: {
     display: 'flex',
     flexDirection: 'column',
@@ -704,10 +800,12 @@ const styles: { [key: string]: React.CSSProperties } = {
     cursor: 'pointer',
     color: '#888',
     fontSize: '15px',
+    display: 'flex',
+    gap: '4px',
   },
   viurlStats: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(4, 1fr)',
+    gridTemplateColumns: 'repeat(2, 1fr)',
     gap: '1px',
     backgroundColor: '#2a2a2a',
     margin: '16px 0',
@@ -737,10 +835,12 @@ const styles: { [key: string]: React.CSSProperties } = {
   tabs: {
     display: 'flex',
     borderBottom: '1px solid #2a2a2a',
+    overflowX: 'auto',
   },
   tab: {
     flex: 1,
-    padding: '16px',
+    minWidth: '80px',
+    padding: '16px 12px',
     backgroundColor: 'transparent',
     border: 'none',
     cursor: 'pointer',
@@ -749,9 +849,10 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   tabActive: {},
   tabText: {
-    fontSize: '15px',
+    fontSize: '14px',
     fontWeight: 500,
     color: '#888',
+    whiteSpace: 'nowrap',
   },
   tabIndicator: {
     position: 'absolute',
@@ -915,6 +1016,10 @@ const styles: { [key: string]: React.CSSProperties } = {
     display: 'flex',
     flexDirection: 'column',
     gap: '8px',
+  },
+  editLabel: {
+    fontSize: '13px',
+    color: '#888',
   },
   editInput: {
     padding: '16px',

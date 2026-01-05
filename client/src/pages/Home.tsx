@@ -590,5 +590,4 @@ if (typeof document !== 'undefined') {
   style.textContent = spinKeyframes;
   document.head.appendChild(style);
 }
-
 export default Home;
