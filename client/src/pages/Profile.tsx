@@ -96,7 +96,7 @@ const Profile: React.FC<ProfileProps> = ({ userId, onNavigate }) => {
         // Update follower count
         setProfileUser(prev => prev ? {
           ...prev,
-          followers: (prev.followers || 0) + (isFollowing ? -1 : 1)
+          followers: (typeof prev.followers === 'number' ? prev.followers : (prev.followers?.length || 0)) + (isFollowing ? -1 : 1)
         } : null);
       }
     } catch (error) {
@@ -160,7 +160,7 @@ const Profile: React.FC<ProfileProps> = ({ userId, onNavigate }) => {
     <Layout 
       currentPage="profile" 
       onNavigate={onNavigate}
-      pageTitle={displayUser?.name || displayUser?.username || 'Profile'}
+      
     >
       {loading ? (
         <div style={styles.loadingContainer}>
@@ -297,11 +297,11 @@ const Profile: React.FC<ProfileProps> = ({ userId, onNavigate }) => {
             {/* Follow Stats */}
             <div style={styles.followStats}>
               <button style={styles.followStat}>
-                <strong>{formatNumber(displayUser.following || 0)}</strong>
+                <strong>{formatNumber(typeof displayUser.following === 'number' ? displayUser.following : (displayUser.following?.length || 0))}</strong>
                 <span>Following</span>
               </button>
               <button style={styles.followStat}>
-                <strong>{formatNumber(displayUser.followers || 0)}</strong>
+                <strong>{formatNumber(typeof displayUser.followers === 'number' ? displayUser.followers : (displayUser.followers?.length || 0))}</strong>
                 <span>Followers</span>
               </button>
             </div>
@@ -411,7 +411,7 @@ const Profile: React.FC<ProfileProps> = ({ userId, onNavigate }) => {
                 <PostCard
                   key={post._id}
                   post={post}
-                  currentUser={currentUser}
+                  
                 />
               ))
             )}

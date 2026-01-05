@@ -9,6 +9,8 @@ import type { UserState, User } from '../../types';
 const API_BASE = '/api';
 
 const initialState: UserState = {
+  profile: null,
+  darkMode: false,
   currentUser: null,
   profileUser: null,
   loading: false,
@@ -187,7 +189,7 @@ const userSlice = createSlice({
             (state.profileUser._id === action.payload.userId || 
              state.profileUser.id === action.payload.userId)) {
           state.profileUser.isFollowing = true;
-          state.profileUser.followers = (state.profileUser.followers || 0) + 1;
+          state.profileUser.followers = (typeof state.profileUser.followers === 'number' ? state.profileUser.followers : (state.profileUser.followers?.length || 0)) + 1;
         }
       })
       // Unfollow User
@@ -196,7 +198,7 @@ const userSlice = createSlice({
             (state.profileUser._id === action.payload.userId || 
              state.profileUser.id === action.payload.userId)) {
           state.profileUser.isFollowing = false;
-          state.profileUser.followers = Math.max(0, (state.profileUser.followers || 0) - 1);
+          state.profileUser.followers = Math.max(0, (typeof state.profileUser.followers === 'number' ? state.profileUser.followers : (state.profileUser.followers?.length || 0)) - 1);
         }
       });
   },

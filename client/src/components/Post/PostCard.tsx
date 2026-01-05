@@ -5,17 +5,19 @@ import { useState } from 'react';
 import VerificationModal from '../Verification/VerificationModal';
 
 interface Author {
-  id: string;
+  _id: string;
+  id?: string;
   username: string;
   name: string;
   profilePicture?: string;
   trustScore: number;
-  verificationBadge: 'none' | 'bronze' | 'silver' | 'gold' | 'platinum';
+  verificationBadge?: 'none' | 'bronze' | 'silver' | 'gold' | 'platinum';
   isVerified?: boolean;
 }
 
 interface Post {
-  id: string;
+  _id: string;
+  id?: string;
   author: Author;
   content: string;
   media?: {
@@ -126,7 +128,7 @@ const PostCard = ({
     try {
       // Call API
       if (onVerify) {
-        await onVerify(post.id, data);
+        await onVerify(post._id, data);
       }
       
       // Update local state
@@ -145,19 +147,19 @@ const PostCard = ({
   const handleRepost = () => {
     setIsReposted(!isReposted);
     setRepostCount(prev => isReposted ? prev - 1 : prev + 1);
-    if (onRepost) onRepost(post.id);
+    if (onRepost) onRepost(post._id);
   };
 
   // Handle bookmark
   const handleBookmark = () => {
     setIsBookmarked(!isBookmarked);
     setBookmarkCount(prev => isBookmarked ? prev - 1 : prev + 1);
-    if (onBookmark) onBookmark(post.id);
+    if (onBookmark) onBookmark(post._id);
   };
 
   // Handle comment
   const handleComment = () => {
-    if (onComment) onComment(post.id);
+    if (onComment) onComment(post._id);
   };
 
   // Handle share
@@ -167,7 +169,7 @@ const PostCard = ({
 
   // Copy link
   const copyLink = () => {
-    navigator.clipboard.writeText(`https://viurl.com/post/${post.id}`);
+    navigator.clipboard.writeText(`https://viurl.com/post/${post._id}`);
     setShowShareMenu(false);
     // Could show toast notification
   };
@@ -417,7 +419,7 @@ const PostCard = ({
         style={styles.card}
         onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#080808'}
         onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#000'}
-        onClick={() => onNavigate && onNavigate('post', { postId: post.id })}
+        onClick={() => onNavigate && onNavigate('post', { postId: post._id })}
       >
         <div style={styles.cardInner}>
           {/* Avatar with Trust Ring */}
@@ -454,7 +456,7 @@ const PostCard = ({
               >
                 {post.author.name}
               </span>
-              {post.author.verificationBadge !== 'none' && (
+              {post.author.verificationBadge && post.author.verificationBadge !== 'none' && (
                 <span style={styles.badge}>{getBadgeIcon(post.author.verificationBadge)}</span>
               )}
               <span style={styles.username}>@{post.author.username}</span>
@@ -609,7 +611,7 @@ const PostCard = ({
                     <button
                       style={styles.shareMenuItem}
                       onClick={() => {
-                        window.open(`https://twitter.com/intent/tweet?url=https://viurl.com/post/${post.id}`, '_blank');
+                        window.open(`https://twitter.com/intent/tweet?url=https://viurl.com/post/${post._id}`, '_blank');
                         setShowShareMenu(false);
                       }}
                       onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#111'}
@@ -638,7 +640,7 @@ const PostCard = ({
         isOpen={showVerificationModal}
         onClose={() => setShowVerificationModal(false)}
         post={{
-          id: post.id,
+          id: post._id,
           content: post.content,
           author: {
             username: post.author.username,

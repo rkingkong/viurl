@@ -255,7 +255,7 @@ export const usePosts = () => {
     if (data.media && data.media.length > 0) {
       const formData = new FormData();
       formData.append('content', data.content);
-      formData.append('visibility', data.visibility);
+      formData.append('visibility', data.visibility || 'public');
       if (data.replyTo) formData.append('replyTo', data.replyTo);
       if (data.quotedPost) formData.append('quotedPost', data.quotedPost);
       if (data.poll) formData.append('poll', JSON.stringify(data.poll));
@@ -569,7 +569,7 @@ export const useMessages = () => {
       if (data.conversationId) formData.append('conversationId', data.conversationId);
       if (data.recipientId) formData.append('recipientId', data.recipientId);
       formData.append('content', data.content);
-      formData.append('type', data.type);
+      formData.append('type', data.type || 'text');
       formData.append('media', data.media);
       return apiUpload<Message>('/messages', formData);
     }

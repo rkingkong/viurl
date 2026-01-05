@@ -216,8 +216,8 @@ const Home: React.FC = () => {
       {isAuthenticated && (
         <div style={styles.createPostSection}>
           <CreatePost 
-            placeholder="What's happening?"
-            onPostCreated={() => dispatch(fetchFeed(1))}
+            
+            onPost={() => dispatch(fetchFeed(1))}
           />
         </div>
       )}
@@ -289,7 +289,7 @@ const Home: React.FC = () => {
           <PostCard
             key={post._id}
             post={post}
-            currentUser={user}
+            
             onVerify={handleVerify}
             onRepost={handleRepost}
             onBookmark={handleBookmark}

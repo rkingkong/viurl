@@ -1,7 +1,4 @@
-// Messages.tsx - VIURL Direct Messages Page
-// Location: client/src/pages/Messages.tsx
-
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 interface User {
   id: string;
@@ -21,7 +18,6 @@ interface Message {
   timestamp: string;
   read: boolean;
   type: 'text' | 'image' | 'post_share' | 'verification_share';
-  // For shared content
   sharedPost?: {
     id: string;
     content: string;
@@ -41,6 +37,64 @@ interface MessagesProps {
   onNavigate?: (page: string, params?: any) => void;
 }
 
+// Dynamic style functions (defined outside component for TypeScript compatibility)
+const getConversationItemStyle = (selected: boolean, hasUnread: boolean): React.CSSProperties => ({
+  display: 'flex',
+  alignItems: 'center',
+  gap: '12px',
+  padding: '16px',
+  cursor: 'pointer',
+  backgroundColor: selected ? '#111' : hasUnread ? 'rgba(0, 255, 0, 0.03)' : 'transparent',
+  borderBottom: '1px solid #222',
+  transition: 'background-color 0.2s',
+});
+
+const getLastMessageStyle = (unread: boolean): React.CSSProperties => ({
+  color: unread ? '#fff' : '#888',
+  fontSize: '14px',
+  fontWeight: unread ? 600 : 400,
+  whiteSpace: 'nowrap',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  margin: 0,
+});
+
+const getMessageWrapperStyle = (isOwn: boolean): React.CSSProperties => ({
+  display: 'flex',
+  justifyContent: isOwn ? 'flex-end' : 'flex-start',
+});
+
+const getMessageBubbleStyle = (isOwn: boolean): React.CSSProperties => ({
+  maxWidth: '70%',
+  padding: '12px 16px',
+  borderRadius: isOwn ? '20px 20px 4px 20px' : '20px 20px 20px 4px',
+  backgroundColor: isOwn ? '#00FF00' : '#222',
+  color: isOwn ? '#000' : '#fff',
+});
+
+const getMessageTimestampStyle = (isOwn: boolean): React.CSSProperties => ({
+  fontSize: '11px',
+  color: isOwn ? 'rgba(0,0,0,0.6)' : '#888',
+  marginTop: '4px',
+  textAlign: 'right',
+});
+
+const getSendBtnStyle = (hasContent: boolean): React.CSSProperties => ({
+  width: '44px',
+  height: '44px',
+  borderRadius: '50%',
+  backgroundColor: hasContent ? '#00FF00' : '#333',
+  border: 'none',
+  color: hasContent ? '#000' : '#666',
+  fontSize: '18px',
+  cursor: hasContent ? 'pointer' : 'not-allowed',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  transition: 'all 0.2s',
+  flexShrink: 0,
+});
+
 const Messages = ({ onNavigate }: MessagesProps) => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
@@ -53,7 +107,6 @@ const Messages = ({ onNavigate }: MessagesProps) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Current user ID (would come from auth context)
   const currentUserId = 'current-user';
 
   // Mock data
@@ -152,13 +205,11 @@ const Messages = ({ onNavigate }: MessagesProps) => {
       setLoading(false);
     }, 500);
 
-    // Handle resize
     const handleResize = () => setIsMobileView(window.innerWidth < 768);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Load messages when conversation is selected
   useEffect(() => {
     if (selectedConversation) {
       const mockMessages: Message[] = [
@@ -181,7 +232,7 @@ const Messages = ({ onNavigate }: MessagesProps) => {
         {
           id: 'm3',
           senderId: selectedConversation.participant.id,
-          content: 'Would you mind taking a look at this post? I\'m not sure if it\'s accurate.',
+          content: "Would you mind taking a look at this post? I'm not sure if it's accurate.",
           timestamp: new Date(Date.now() - 1000 * 60 * 50).toISOString(),
           read: true,
           type: 'text',
@@ -202,7 +253,7 @@ const Messages = ({ onNavigate }: MessagesProps) => {
         {
           id: 'm5',
           senderId: 'current-user',
-          content: 'Let me check the sources on that one. I\'ll get back to you! 🔍',
+          content: "Let me check the sources on that one. I'll get back to you! 🔍",
           timestamp: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
           read: true,
           type: 'text',
@@ -218,7 +269,6 @@ const Messages = ({ onNavigate }: MessagesProps) => {
       ];
       setMessages(mockMessages);
       
-      // Mark as read
       setConversations(convs => 
         convs.map(c => 
           c.id === selectedConversation.id ? { ...c, unreadCount: 0 } : c
@@ -227,12 +277,10 @@ const Messages = ({ onNavigate }: MessagesProps) => {
     }
   }, [selectedConversation]);
 
-  // Scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Get badge icon
   const getBadgeIcon = (badge: string): string => {
     switch (badge) {
       case 'platinum': return '💎';
@@ -243,7 +291,6 @@ const Messages = ({ onNavigate }: MessagesProps) => {
     }
   };
 
-  // Format time
   const formatTime = (dateString: string): string => {
     const date = new Date(dateString);
     const now = new Date();
@@ -258,13 +305,11 @@ const Messages = ({ onNavigate }: MessagesProps) => {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
-  // Format message time
   const formatMessageTime = (dateString: string): string => {
     const date = new Date(dateString);
     return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
   };
 
-  // Send message
   const sendMessage = () => {
     if (!newMessage.trim() || !selectedConversation) return;
 
@@ -280,7 +325,6 @@ const Messages = ({ onNavigate }: MessagesProps) => {
     setMessages([...messages, message]);
     setNewMessage('');
 
-    // Update conversation
     setConversations(convs =>
       convs.map(c =>
         c.id === selectedConversation.id
@@ -289,11 +333,9 @@ const Messages = ({ onNavigate }: MessagesProps) => {
       ).sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
     );
 
-    // Focus input
     inputRef.current?.focus();
   };
 
-  // Handle key press
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -301,13 +343,11 @@ const Messages = ({ onNavigate }: MessagesProps) => {
     }
   };
 
-  // Filter conversations
   const filteredConversations = conversations.filter(c =>
     c.participant.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     c.participant.username.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Total unread
   const totalUnread = conversations.reduce((sum, c) => sum + c.unreadCount, 0);
 
   const styles: Record<string, React.CSSProperties> = {
@@ -316,7 +356,6 @@ const Messages = ({ onNavigate }: MessagesProps) => {
       height: '100vh',
       backgroundColor: '#000',
     },
-    // Conversation List
     sidebar: {
       width: isMobileView && selectedConversation ? '0' : isMobileView ? '100%' : '380px',
       borderRight: '1px solid #333',
@@ -387,16 +426,6 @@ const Messages = ({ onNavigate }: MessagesProps) => {
       flex: 1,
       overflowY: 'auto',
     },
-    conversationItem: (selected: boolean, hasUnread: boolean) => ({
-      display: 'flex',
-      alignItems: 'center',
-      gap: '12px',
-      padding: '16px',
-      cursor: 'pointer',
-      backgroundColor: selected ? '#111' : hasUnread ? 'rgba(0, 255, 0, 0.03)' : 'transparent',
-      borderBottom: '1px solid #222',
-      transition: 'background-color 0.2s',
-    }),
     avatarContainer: {
       position: 'relative',
       flexShrink: 0,
@@ -445,14 +474,6 @@ const Messages = ({ onNavigate }: MessagesProps) => {
       color: '#888',
       fontSize: '13px',
     },
-    lastMessage: (unread: boolean) => ({
-      color: unread ? '#fff' : '#888',
-      fontSize: '14px',
-      fontWeight: unread ? 600 : 400,
-      whiteSpace: 'nowrap',
-      overflow: 'hidden',
-      textOverflow: 'ellipsis',
-    }),
     unreadDot: {
       width: '10px',
       height: '10px',
@@ -460,7 +481,6 @@ const Messages = ({ onNavigate }: MessagesProps) => {
       backgroundColor: '#00FF00',
       flexShrink: 0,
     },
-    // Chat Area
     chatArea: {
       flex: 1,
       display: 'flex',
@@ -527,17 +547,6 @@ const Messages = ({ onNavigate }: MessagesProps) => {
       flexDirection: 'column',
       gap: '8px',
     },
-    messageWrapper: (isOwn: boolean) => ({
-      display: 'flex',
-      justifyContent: isOwn ? 'flex-end' : 'flex-start',
-    }),
-    messageBubble: (isOwn: boolean) => ({
-      maxWidth: '70%',
-      padding: '12px 16px',
-      borderRadius: isOwn ? '20px 20px 4px 20px' : '20px 20px 20px 4px',
-      backgroundColor: isOwn ? '#00FF00' : '#222',
-      color: isOwn ? '#000' : '#fff',
-    }),
     messageText: {
       fontSize: '15px',
       lineHeight: 1.4,
@@ -545,12 +554,6 @@ const Messages = ({ onNavigate }: MessagesProps) => {
       whiteSpace: 'pre-wrap',
       wordBreak: 'break-word',
     },
-    messageTimestamp: (isOwn: boolean) => ({
-      fontSize: '11px',
-      color: isOwn ? 'rgba(0,0,0,0.6)' : '#888',
-      marginTop: '4px',
-      textAlign: 'right' as const,
-    }),
     sharedPost: {
       backgroundColor: '#111',
       border: '1px solid #333',
@@ -567,7 +570,6 @@ const Messages = ({ onNavigate }: MessagesProps) => {
       color: '#00FF00',
       fontSize: '13px',
     },
-    // Composer
     composer: {
       padding: '16px',
       borderTop: '1px solid #333',
@@ -588,22 +590,6 @@ const Messages = ({ onNavigate }: MessagesProps) => {
       maxHeight: '120px',
       fontFamily: 'inherit',
     },
-    sendBtn: (hasContent: boolean) => ({
-      width: '44px',
-      height: '44px',
-      borderRadius: '50%',
-      backgroundColor: hasContent ? '#00FF00' : '#333',
-      border: 'none',
-      color: hasContent ? '#000' : '#666',
-      fontSize: '18px',
-      cursor: hasContent ? 'pointer' : 'not-allowed',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      transition: 'all 0.2s',
-      flexShrink: 0,
-    }),
-    // Empty States
     emptyState: {
       flex: 1,
       display: 'flex',
@@ -688,7 +674,7 @@ const Messages = ({ onNavigate }: MessagesProps) => {
             filteredConversations.map((conversation) => (
               <div
                 key={conversation.id}
-                style={styles.conversationItem(
+                style={getConversationItemStyle(
                   selectedConversation?.id === conversation.id,
                   conversation.unreadCount > 0
                 )}
@@ -735,7 +721,7 @@ const Messages = ({ onNavigate }: MessagesProps) => {
                     </span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <p style={styles.lastMessage(conversation.unreadCount > 0)}>
+                    <p style={getLastMessageStyle(conversation.unreadCount > 0)}>
                       {conversation.lastMessage.senderId === currentUserId && 'You: '}
                       {conversation.lastMessage.content}
                     </p>
@@ -813,8 +799,8 @@ const Messages = ({ onNavigate }: MessagesProps) => {
               {messages.map((message) => {
                 const isOwn = message.senderId === currentUserId;
                 return (
-                  <div key={message.id} style={styles.messageWrapper(isOwn)}>
-                    <div style={styles.messageBubble(isOwn)}>
+                  <div key={message.id} style={getMessageWrapperStyle(isOwn)}>
+                    <div style={getMessageBubbleStyle(isOwn)}>
                       {message.type === 'post_share' && message.sharedPost && (
                         <div style={styles.sharedPost}>
                           <p style={styles.sharedPostContent}>{message.sharedPost.content}</p>
@@ -824,7 +810,7 @@ const Messages = ({ onNavigate }: MessagesProps) => {
                       {message.content && (
                         <p style={styles.messageText}>{message.content}</p>
                       )}
-                      <div style={styles.messageTimestamp(isOwn)}>
+                      <div style={getMessageTimestampStyle(isOwn)}>
                         {formatMessageTime(message.timestamp)}
                         {isOwn && (message.read ? ' ✓✓' : ' ✓')}
                       </div>
@@ -847,7 +833,7 @@ const Messages = ({ onNavigate }: MessagesProps) => {
                 rows={1}
               />
               <button
-                style={styles.sendBtn(newMessage.trim().length > 0)}
+                style={getSendBtnStyle(newMessage.trim().length > 0)}
                 onClick={sendMessage}
                 disabled={!newMessage.trim()}
               >
@@ -876,5 +862,4 @@ const Messages = ({ onNavigate }: MessagesProps) => {
     </div>
   );
 };
-
 export default Messages;

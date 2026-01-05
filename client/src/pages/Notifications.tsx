@@ -1,14 +1,13 @@
 // Notifications.tsx - VIURL Notifications Page
 // Location: client/src/pages/Notifications.tsx
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 
 interface Notification {
   id: string;
   type: 'verification' | 'verified_your_post' | 'token_reward' | 'follow' | 'mention' | 'repost' | 'comment' | 'badge' | 'milestone' | 'system';
   read: boolean;
   createdAt: string;
-  // User who triggered the notification
   fromUser?: {
     id: string;
     username: string;
@@ -17,26 +16,58 @@ interface Notification {
     verificationBadge?: 'none' | 'bronze' | 'silver' | 'gold' | 'platinum';
     trustScore?: number;
   };
-  // Related content
   post?: {
     id: string;
     content: string;
   };
-  // Verification specific
   verdict?: 'true' | 'false' | 'misleading' | 'partially_true';
-  // Token reward specific
   tokenAmount?: number;
   tokenReason?: string;
-  // Badge specific
   badgeType?: 'bronze' | 'silver' | 'gold' | 'platinum';
-  // Milestone specific
   milestoneType?: string;
   milestoneValue?: number;
 }
 
 interface NotificationsProps {
-  onNavigate: (page: string, params?: any) => void;
+  onNavigate?: (page: string, params?: any) => void;
 }
+
+// Dynamic style functions (defined outside component for TypeScript compatibility)
+const getTabStyle = (active: boolean): React.CSSProperties => ({
+  flex: 1,
+  padding: '16px',
+  backgroundColor: 'transparent',
+  border: 'none',
+  color: active ? '#fff' : '#888',
+  fontSize: '15px',
+  fontWeight: active ? 700 : 500,
+  cursor: 'pointer',
+  position: 'relative',
+  transition: 'color 0.2s',
+});
+
+const getNotificationItemStyle = (read: boolean): React.CSSProperties => ({
+  display: 'flex',
+  gap: '12px',
+  padding: '16px',
+  backgroundColor: read ? 'transparent' : 'rgba(0, 255, 0, 0.03)',
+  borderBottom: '1px solid #222',
+  cursor: 'pointer',
+  transition: 'background-color 0.2s',
+});
+
+const getIconContainerStyle = (type: string): React.CSSProperties => ({
+  width: '44px',
+  height: '44px',
+  borderRadius: '50%',
+  backgroundColor: type === 'token_reward' || type === 'system' ? '#00FF0015' : '#222',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  fontSize: '18px',
+  flexShrink: 0,
+  border: type === 'token_reward' ? '2px solid #00FF0040' : 'none',
+});
 
 const Notifications = ({ onNavigate }: NotificationsProps) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -50,7 +81,7 @@ const Notifications = ({ onNavigate }: NotificationsProps) => {
         id: '1',
         type: 'token_reward',
         read: false,
-        createdAt: new Date(Date.now() - 1000 * 60 * 5).toISOString(), // 5 mins ago
+        createdAt: new Date(Date.now() - 1000 * 60 * 5).toISOString(),
         tokenAmount: 15,
         tokenReason: 'Accurate verification of viral claim',
       },
@@ -58,7 +89,7 @@ const Notifications = ({ onNavigate }: NotificationsProps) => {
         id: '2',
         type: 'verified_your_post',
         read: false,
-        createdAt: new Date(Date.now() - 1000 * 60 * 15).toISOString(), // 15 mins ago
+        createdAt: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
         fromUser: {
           id: 'user1',
           username: 'factchecker',
@@ -76,7 +107,7 @@ const Notifications = ({ onNavigate }: NotificationsProps) => {
         id: '3',
         type: 'follow',
         read: false,
-        createdAt: new Date(Date.now() - 1000 * 60 * 30).toISOString(), // 30 mins ago
+        createdAt: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
         fromUser: {
           id: 'user2',
           username: 'truthseeker',
@@ -89,14 +120,14 @@ const Notifications = ({ onNavigate }: NotificationsProps) => {
         id: '4',
         type: 'badge',
         read: false,
-        createdAt: new Date(Date.now() - 1000 * 60 * 60).toISOString(), // 1 hour ago
+        createdAt: new Date(Date.now() - 1000 * 60 * 60).toISOString(),
         badgeType: 'bronze',
       },
       {
         id: '5',
         type: 'mention',
         read: true,
-        createdAt: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(), // 2 hours ago
+        createdAt: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
         fromUser: {
           id: 'user3',
           username: 'newsbreaker',
@@ -113,7 +144,7 @@ const Notifications = ({ onNavigate }: NotificationsProps) => {
         id: '6',
         type: 'verification',
         read: true,
-        createdAt: new Date(Date.now() - 1000 * 60 * 60 * 3).toISOString(), // 3 hours ago
+        createdAt: new Date(Date.now() - 1000 * 60 * 60 * 3).toISOString(),
         fromUser: {
           id: 'user4',
           username: 'verifier',
@@ -131,7 +162,7 @@ const Notifications = ({ onNavigate }: NotificationsProps) => {
         id: '7',
         type: 'milestone',
         read: true,
-        createdAt: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(), // 5 hours ago
+        createdAt: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(),
         milestoneType: 'verifications',
         milestoneValue: 100,
       },
@@ -139,7 +170,7 @@ const Notifications = ({ onNavigate }: NotificationsProps) => {
         id: '8',
         type: 'repost',
         read: true,
-        createdAt: new Date(Date.now() - 1000 * 60 * 60 * 8).toISOString(), // 8 hours ago
+        createdAt: new Date(Date.now() - 1000 * 60 * 60 * 8).toISOString(),
         fromUser: {
           id: 'user5',
           username: 'influencer',
@@ -156,7 +187,7 @@ const Notifications = ({ onNavigate }: NotificationsProps) => {
         id: '9',
         type: 'system',
         read: true,
-        createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(), // 1 day ago
+        createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
         tokenAmount: 100,
         tokenReason: 'Welcome bonus! Start verifying posts to earn more.',
       },
@@ -168,7 +199,6 @@ const Notifications = ({ onNavigate }: NotificationsProps) => {
     }, 500);
   }, []);
 
-  // Filter notifications based on active tab
   const filteredNotifications = notifications.filter((n) => {
     if (activeTab === 'all') return true;
     if (activeTab === 'verifications') {
@@ -180,12 +210,10 @@ const Notifications = ({ onNavigate }: NotificationsProps) => {
     return true;
   });
 
-  // Mark all as read
   const markAllAsRead = () => {
     setNotifications(notifications.map(n => ({ ...n, read: true })));
   };
 
-  // Get time ago string
   const getTimeAgo = (dateString: string): string => {
     const now = new Date();
     const date = new Date(dateString);
@@ -198,7 +226,6 @@ const Notifications = ({ onNavigate }: NotificationsProps) => {
     return date.toLocaleDateString();
   };
 
-  // Get badge icon
   const getBadgeIcon = (badge?: string): string => {
     switch (badge) {
       case 'platinum': return '💎';
@@ -209,7 +236,6 @@ const Notifications = ({ onNavigate }: NotificationsProps) => {
     }
   };
 
-  // Get verdict info
   const getVerdictInfo = (verdict?: string): { icon: string; color: string; label: string } => {
     switch (verdict) {
       case 'true': return { icon: '✅', color: '#00FF00', label: 'True' };
@@ -220,7 +246,6 @@ const Notifications = ({ onNavigate }: NotificationsProps) => {
     }
   };
 
-  // Render notification content based on type
   const renderNotificationContent = (notification: Notification) => {
     const { type, fromUser, post, verdict, tokenAmount, tokenReason, badgeType, milestoneType, milestoneValue } = notification;
 
@@ -241,7 +266,7 @@ const Notifications = ({ onNavigate }: NotificationsProps) => {
         return (
           <div style={styles.notificationBody}>
             <p style={styles.notificationText}>
-              <strong style={styles.username} onClick={() => onNavigate('profile', { userId: fromUser?.username })}>
+              <strong style={styles.username} onClick={() => onNavigate && onNavigate('profile', { userId: fromUser?.username })}>
                 {fromUser?.name}
               </strong>
               {' '}verified your post as{' '}
@@ -262,7 +287,7 @@ const Notifications = ({ onNavigate }: NotificationsProps) => {
         return (
           <div style={styles.notificationBody}>
             <p style={styles.notificationText}>
-              <strong style={styles.username} onClick={() => onNavigate('profile', { userId: fromUser?.username })}>
+              <strong style={styles.username} onClick={() => onNavigate && onNavigate('profile', { userId: fromUser?.username })}>
                 {fromUser?.name}
               </strong>
               {' '}marked a post as{' '}
@@ -282,7 +307,7 @@ const Notifications = ({ onNavigate }: NotificationsProps) => {
         return (
           <div style={styles.notificationBody}>
             <p style={styles.notificationText}>
-              <strong style={styles.username} onClick={() => onNavigate('profile', { userId: fromUser?.username })}>
+              <strong style={styles.username} onClick={() => onNavigate && onNavigate('profile', { userId: fromUser?.username })}>
                 {fromUser?.name}
               </strong>
               {' '}followed you
@@ -300,7 +325,7 @@ const Notifications = ({ onNavigate }: NotificationsProps) => {
         return (
           <div style={styles.notificationBody}>
             <p style={styles.notificationText}>
-              <strong style={styles.username} onClick={() => onNavigate('profile', { userId: fromUser?.username })}>
+              <strong style={styles.username} onClick={() => onNavigate && onNavigate('profile', { userId: fromUser?.username })}>
                 {fromUser?.name}
               </strong>
               {type === 'mention' ? ' mentioned you' : ' commented on your post'}
@@ -317,7 +342,7 @@ const Notifications = ({ onNavigate }: NotificationsProps) => {
         return (
           <div style={styles.notificationBody}>
             <p style={styles.notificationText}>
-              <strong style={styles.username} onClick={() => onNavigate('profile', { userId: fromUser?.username })}>
+              <strong style={styles.username} onClick={() => onNavigate && onNavigate('profile', { userId: fromUser?.username })}>
                 {fromUser?.name}
               </strong>
               {' '}reposted your post
@@ -378,7 +403,6 @@ const Notifications = ({ onNavigate }: NotificationsProps) => {
     }
   };
 
-  // Get notification icon based on type
   const getNotificationIcon = (type: Notification['type']): string => {
     switch (type) {
       case 'verification': return '✓';
@@ -448,18 +472,6 @@ const Notifications = ({ onNavigate }: NotificationsProps) => {
       display: 'flex',
       borderBottom: '1px solid #333',
     },
-    tab: (active: boolean) => ({
-      flex: 1,
-      padding: '16px',
-      backgroundColor: 'transparent',
-      border: 'none',
-      color: active ? '#fff' : '#888',
-      fontSize: '15px',
-      fontWeight: active ? 700 : 500,
-      cursor: 'pointer',
-      position: 'relative' as const,
-      transition: 'color 0.2s',
-    }),
     tabIndicator: {
       position: 'absolute',
       bottom: 0,
@@ -473,29 +485,8 @@ const Notifications = ({ onNavigate }: NotificationsProps) => {
     notificationsList: {
       padding: '0',
     },
-    notificationItem: (read: boolean) => ({
-      display: 'flex',
-      gap: '12px',
-      padding: '16px',
-      backgroundColor: read ? 'transparent' : 'rgba(0, 255, 0, 0.03)',
-      borderBottom: '1px solid #222',
-      cursor: 'pointer',
-      transition: 'background-color 0.2s',
-    }),
-    iconContainer: (type: string) => ({
-      width: '44px',
-      height: '44px',
-      borderRadius: '50%',
-      backgroundColor: type === 'token_reward' || type === 'system' ? '#00FF0015' : '#222',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      fontSize: '18px',
-      flexShrink: 0,
-      border: type === 'token_reward' ? '2px solid #00FF0040' : 'none',
-    }),
     avatarContainer: {
-      position: 'relative' as const,
+      position: 'relative',
       width: '44px',
       height: '44px',
       flexShrink: 0,
@@ -693,7 +684,7 @@ const Notifications = ({ onNavigate }: NotificationsProps) => {
           {(['all', 'verifications', 'mentions'] as const).map((tab) => (
             <button
               key={tab}
-              style={styles.tab(activeTab === tab)}
+              style={getTabStyle(activeTab === tab)}
               onClick={() => setActiveTab(tab)}
               onMouseEnter={(e) => {
                 if (activeTab !== tab) e.currentTarget.style.backgroundColor = '#111';
@@ -731,18 +722,17 @@ const Notifications = ({ onNavigate }: NotificationsProps) => {
           filteredNotifications.map((notification) => (
             <div
               key={notification.id}
-              style={styles.notificationItem(notification.read)}
+              style={getNotificationItemStyle(notification.read)}
               onMouseEnter={(e) => e.currentTarget.style.backgroundColor = notification.read ? '#0a0a0a' : 'rgba(0, 255, 0, 0.06)'}
               onMouseLeave={(e) => e.currentTarget.style.backgroundColor = notification.read ? 'transparent' : 'rgba(0, 255, 0, 0.03)'}
               onClick={() => {
-                // Mark as read and navigate if needed
                 setNotifications(notifications.map(n => 
                   n.id === notification.id ? { ...n, read: true } : n
                 ));
                 if (notification.post) {
-                  onNavigate('post', { postId: notification.post.id });
+                  onNavigate && onNavigate('post', { postId: notification.post.id });
                 } else if (notification.fromUser) {
-                  onNavigate('profile', { userId: notification.fromUser.username });
+                  onNavigate && onNavigate('profile', { userId: notification.fromUser.username });
                 }
               }}
             >
@@ -765,7 +755,7 @@ const Notifications = ({ onNavigate }: NotificationsProps) => {
                   </div>
                 </div>
               ) : (
-                <div style={styles.iconContainer(notification.type)}>
+                <div style={getIconContainerStyle(notification.type)}>
                   {getNotificationIcon(notification.type)}
                 </div>
               )}
@@ -787,5 +777,4 @@ const Notifications = ({ onNavigate }: NotificationsProps) => {
     </div>
   );
 };
-
 export default Notifications;
