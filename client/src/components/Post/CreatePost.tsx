@@ -254,7 +254,7 @@ const CreatePost = ({
     }
   };
 
-  const styles: Record<string, React.CSSProperties> = {
+  const styles = {
     container: {
       backgroundColor: '#000',
       borderRadius: isModal ? '16px' : '0',
@@ -695,7 +695,7 @@ const CreatePost = ({
       borderRadius: '4px',
       transition: 'background-color 0.2s',
     },
-  };
+  } as const;
 
   return (
     <div style={styles.container}>
@@ -1028,7 +1028,7 @@ const CreatePost = ({
 
               {/* Post button */}
               <button
-                style={styles.postBtn(canPost)}
+                style={styles.postBtn(!!canPost)}
                 onClick={handleSubmit}
                 disabled={!canPost}
               >

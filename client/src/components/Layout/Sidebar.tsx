@@ -100,9 +100,9 @@ const Sidebar: React.FC<SidebarProps> = ({
                 {item.label}
               </span>
               {/* Notification Badge */}
-              {item.id === 'notifications' && user?.notifications?.filter((n: any) => !n.read).length > 0 && (
+              {item.id === 'notifications' && (user?.notifications?.filter((n: any) => !n.read)?.length ?? 0) > 0 && (
                 <span style={styles.notificationBadge}>
-                  {user.notifications.filter((n: any) => !n.read).length}
+                  {user?.notifications?.filter((n: any) => !n.read).length}
                 </span>
               )}
             </button>

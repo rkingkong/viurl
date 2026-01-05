@@ -1,79 +1,116 @@
+// useRedux.ts - VIURL Redux Hooks
+// Location: client/src/hooks/useRedux.ts
+// VERSION: Fixed with type-only imports for verbatimModuleSyntax
+
 import { useDispatch, useSelector } from 'react-redux';
 import type { TypedUseSelectorHook } from 'react-redux';
 import type { RootState, AppDispatch } from '../store';
 
-export const useAppDispatch: () => AppDispatch = useDispatch;
+// Typed dispatch hook
+export const useAppDispatch = () => useDispatch<AppDispatch>();
+
+// Typed selector hook
 export const useAppSelector: TypedUseSelectorHook<RootState> = useSelector;
 
-export const useCurrentUser = () => {
-  return useAppSelector((state) => state.auth.user);
-};
+// ============================================
+// AUTH SELECTORS
+// ============================================
 
-export const useIsAuthenticated = () => {
-  return useAppSelector((state) => state.auth.isAuthenticated);
-};
+export const useCurrentUser = () => useAppSelector((state) => state.auth.user);
+export const useIsAuthenticated = () => useAppSelector((state) => state.auth.isAuthenticated);
+export const useAuthToken = () => useAppSelector((state) => state.auth.token);
+export const useAuthLoading = () => useAppSelector((state) => state.auth.loading);
+export const useAuthError = () => useAppSelector((state) => state.auth.error);
+export const useTokenBalance = () => useAppSelector((state) => state.auth.user?.vtokens ?? 0);
+export const useTrustScore = () => useAppSelector((state) => state.auth.user?.trustScore ?? 0);
+export const useVerificationBadge = () => useAppSelector((state) => state.auth.user?.verificationBadge ?? 'none');
 
-export const useAuthLoading = () => {
-  return useAppSelector((state) => state.auth.loading);
-};
+// ============================================
+// FEED SELECTORS
+// ============================================
 
-export const useAuthError = () => {
-  return useAppSelector((state) => state.auth.error);
-};
+export const useFeedPosts = () => useAppSelector((state) => state.feed.posts);
+export const useFeedLoading = () => useAppSelector((state) => state.feed.loading);
+export const useFeedError = () => useAppSelector((state) => state.feed.error);
+export const useFeedHasMore = () => useAppSelector((state) => state.feed.hasMore);
+export const useFeedPage = () => useAppSelector((state) => state.feed.page);
+export const useFeedType = () => useAppSelector((state) => state.feed.feedType);
+export const useFeedRefreshing = () => useAppSelector((state) => state.feed.refreshing);
 
-export const useAuthToken = () => {
-  return useAppSelector((state) => state.auth.token);
-};
+// Post by ID
+export const usePostById = (postId: string) => useAppSelector(
+  (state) => state.feed.posts.find((p) => p._id === postId)
+);
 
-export const useFeedPosts = () => {
-  return useAppSelector((state) => state.feed.posts);
-};
+// Has user verified this post?
+export const useHasVerifiedPost = (postId: string) => useAppSelector(
+  (state) => {
+    const post = state.feed.posts.find((p) => p._id === postId);
+    if (!post) return false;
+    return post.isVerifiedByMe ?? false;
+  }
+);
 
-export const useFeedLoading = () => {
-  return useAppSelector((state) => state.feed.loading);
-};
+// Has user bookmarked this post?
+export const useHasBookmarkedPost = (postId: string) => useAppSelector(
+  (state) => {
+    const post = state.feed.posts.find((p) => p._id === postId);
+    if (!post) return false;
+    return post.isBookmarkedByMe ?? false;
+  }
+);
 
-export const useFeedError = () => {
-  return useAppSelector((state) => state.feed.error);
-};
+// Has user reposted this post?
+export const useHasRepostedPost = (postId: string) => useAppSelector(
+  (state) => {
+    const post = state.feed.posts.find((p) => p._id === postId);
+    if (!post) return false;
+    return post.isRepostedByMe ?? false;
+  }
+);
 
-export const useFeedHasMore = () => {
-  return useAppSelector((state) => state.feed.hasMore);
-};
+// ============================================
+// COMBINED SELECTORS
+// ============================================
 
-export const useTokenBalance = (): number => {
-  const user = useCurrentUser();
-  return user?.vtokens || 0;
-};
+// Get auth state
+export const useAuth = () => useAppSelector((state) => state.auth);
 
-export const useTrustScore = (): number => {
-  const user = useCurrentUser();
-  return user?.trustScore || 0;
-};
+// Get feed state
+export const useFeed = () => useAppSelector((state) => state.feed);
 
-export const useUserBadge = (): string => {
-  const user = useCurrentUser();
-  if (!user) return '🥉';
-  const score = user.trustScore || 0;
-  if (score >= 95) return '💎';
-  if (score >= 75) return '🥇';
-  if (score >= 50) return '🥈';
-  return '🥉';
-};
+// Get user stats
+export const useUserStats = () => useAppSelector((state) => ({
+  vtokens: state.auth.user?.vtokens ?? 0,
+  trustScore: state.auth.user?.trustScore ?? 0,
+  badge: state.auth.user?.verificationBadge ?? 'none',
+  followers: state.auth.user?.followers ?? 0,
+  following: state.auth.user?.following ?? 0,
+}));
 
-export const useAuth = () => {
-  const user = useCurrentUser();
-  const isAuthenticated = useIsAuthenticated();
-  const loading = useAuthLoading();
-  const error = useAuthError();
-  const token = useAuthToken();
-  return { user, isAuthenticated, loading, error, token };
-};
-
-export const useFeed = () => {
-  const posts = useFeedPosts();
-  const loading = useFeedLoading();
-  const error = useFeedError();
-  const hasMore = useFeedHasMore();
-  return { posts, loading, error, hasMore };
+export default {
+  useAppDispatch,
+  useAppSelector,
+  useCurrentUser,
+  useIsAuthenticated,
+  useAuthToken,
+  useAuthLoading,
+  useAuthError,
+  useTokenBalance,
+  useTrustScore,
+  useVerificationBadge,
+  useFeedPosts,
+  useFeedLoading,
+  useFeedError,
+  useFeedHasMore,
+  useFeedPage,
+  useFeedType,
+  useFeedRefreshing,
+  usePostById,
+  useHasVerifiedPost,
+  useHasBookmarkedPost,
+  useHasRepostedPost,
+  useAuth,
+  useFeed,
+  useUserStats,
 };

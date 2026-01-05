@@ -174,7 +174,7 @@ const PostCard = ({
 
   const factCheck = getFactCheckInfo(post.factCheckStatus);
 
-  const styles: Record<string, React.CSSProperties> = {
+  const styles = {
     card: {
       backgroundColor: '#000',
       borderBottom: '1px solid #222',
@@ -409,7 +409,7 @@ const PostCard = ({
       color: '#fff',
       fontWeight: 600,
     },
-  };
+  } as const;
 
   return (
     <>

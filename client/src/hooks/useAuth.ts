@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { useAppDispatch, useAppSelector } from './useRedux';
-import { login, register, logout, checkAuth } from '../store/slices/authSlice';
+import { login, register, logout, fetchCurrentUser } from '../store/slices/authSlice';
 import type { LoginCredentials, RegisterData } from '../types';
 
 export function useAuth() {
@@ -39,7 +39,7 @@ export function useAuth() {
 
   const handleCheckAuth = useCallback(async () => {
     try {
-      const result = await dispatch(checkAuth()).unwrap();
+      const result = await dispatch(fetchCurrentUser()).unwrap();
       return { success: true, data: result };
     } catch {
       return { success: false, error: 'Not authenticated' };

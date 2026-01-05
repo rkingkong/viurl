@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAppDispatch, useAppSelector } from '../hooks/useRedux';
-import { fetchFeed, clearFeed } from '../store/slices/feedSlice';
+import { fetchFeed, resetFeed } from '../store/slices/feedSlice';
 import Layout from '../components/Layout/Layout';
 import CreatePost from '../components/Post/CreatePost';
 import PostCard from '../components/Post/PostCard';
@@ -28,14 +28,14 @@ const Home: React.FC = () => {
   // Handle tab change
   const handleTabChange = (tab: 'for-you' | 'following') => {
     setActiveTab(tab);
-    dispatch(clearFeed());
+    dispatch(resetFeed());
     dispatch(fetchFeed(1));
   };
 
   // Handle refresh
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    dispatch(clearFeed());
+    dispatch(resetFeed());
     await dispatch(fetchFeed(1));
     setIsRefreshing(false);
   };

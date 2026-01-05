@@ -1,25 +1,33 @@
+// feedSlice.ts - VIURL Feed State Management
+// Location: client/src/store/slices/feedSlice.ts
+// VERSION: Fixed with all necessary exports including addPost
+
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import type { PayloadAction } from '@reduxjs/toolkit';
-import type { FeedState, Post } from '../../types';
+import type { Post, FeedState, FeedType, AuthState } from '../../types';
 
 const API_BASE = '/api';
+
+const getAuthHeaders = (): Record<string, string> => {
+  const token = localStorage.getItem('viurl_token');
+  return {
+    'Content-Type': 'application/json',
+    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+  };
+};
 
 const initialState: FeedState = {
   posts: [],
   loading: false,
   error: null,
-  page: 1,
   hasMore: true,
+  page: 1,
+  cursor: undefined,
+  feedType: 'forYou',
   refreshing: false,
 };
 
-const getAuthHeaders = (): HeadersInit => {
-  const token = localStorage.getItem('token');
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  if (token) headers['Authorization'] = `Bearer ${token}`;
-  return headers;
-};
-
+// Async Thunks
 export const fetchFeed = createAsyncThunk(
   'feed/fetchFeed',
   async (page: number = 1, { rejectWithValue }) => {
@@ -27,15 +35,21 @@ export const fetchFeed = createAsyncThunk(
       const response = await fetch(`${API_BASE}/posts?page=${page}&limit=20`, {
         headers: getAuthHeaders(),
       });
+      
       const data = await response.json();
-      if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch');
+      
+      if (!response.ok) {
+        return rejectWithValue(data.message || 'Failed to fetch feed');
+      }
+      
       return {
         posts: data.posts || data.data || data,
         page,
-        hasMore: data.hasMore ?? (data.posts?.length === 20),
+        hasMore: (data.posts || data.data || data).length === 20,
       };
-    } catch {
-      return rejectWithValue('Network error');
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Network error';
+      return rejectWithValue(message);
     }
   }
 );
@@ -47,32 +61,76 @@ export const refreshFeed = createAsyncThunk(
       const response = await fetch(`${API_BASE}/posts?page=1&limit=20`, {
         headers: getAuthHeaders(),
       });
+      
       const data = await response.json();
-      if (!response.ok) return rejectWithValue(data.message || 'Failed to refresh');
+      
+      if (!response.ok) {
+        return rejectWithValue(data.message || 'Failed to refresh feed');
+      }
+      
       return {
         posts: data.posts || data.data || data,
-        hasMore: data.hasMore ?? (data.posts?.length === 20),
+        hasMore: (data.posts || data.data || data).length === 20,
       };
-    } catch {
-      return rejectWithValue('Network error');
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Network error';
+      return rejectWithValue(message);
     }
   }
 );
 
 export const createPost = createAsyncThunk(
   'feed/createPost',
-  async ({ content }: { content: string }, { rejectWithValue }) => {
+  async (content: string, { rejectWithValue }) => {
     try {
       const response = await fetch(`${API_BASE}/posts`, {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({ content }),
       });
+      
       const data = await response.json();
-      if (!response.ok) return rejectWithValue(data.message || 'Failed to create');
+      
+      if (!response.ok) {
+        return rejectWithValue(data.message || 'Failed to create post');
+      }
+      
       return data.post || data;
-    } catch {
-      return rejectWithValue('Network error');
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Network error';
+      return rejectWithValue(message);
+    }
+  }
+);
+
+export const verifyPost = createAsyncThunk(
+  'feed/verifyPost',
+  async ({ postId, verdict, sources, explanation }: {
+    postId: string;
+    verdict: 'true' | 'false' | 'misleading' | 'partially_true';
+    sources?: string[];
+    explanation?: string;
+  }, { rejectWithValue }) => {
+    try {
+      const response = await fetch(`${API_BASE}/posts/${postId}/verify`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ verdict, sources, explanation }),
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        return rejectWithValue(data.message || 'Failed to verify post');
+      }
+      
+      return {
+        postId,
+        ...data,
+      };
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Network error';
+      return rejectWithValue(message);
     }
   }
 );
@@ -85,11 +143,17 @@ export const likePost = createAsyncThunk(
         method: 'POST',
         headers: getAuthHeaders(),
       });
+      
       const data = await response.json();
-      if (!response.ok) return rejectWithValue(data.message || 'Failed to like');
-      return { postId, liked: data.liked ?? true };
-    } catch {
-      return rejectWithValue('Network error');
+      
+      if (!response.ok) {
+        return rejectWithValue(data.message || 'Failed to like post');
+      }
+      
+      return { postId, ...data };
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Network error';
+      return rejectWithValue(message);
     }
   }
 );
@@ -102,11 +166,17 @@ export const repostPost = createAsyncThunk(
         method: 'POST',
         headers: getAuthHeaders(),
       });
+      
       const data = await response.json();
-      if (!response.ok) return rejectWithValue(data.message || 'Failed to repost');
-      return { postId, reposted: data.reposted ?? true };
-    } catch {
-      return rejectWithValue('Network error');
+      
+      if (!response.ok) {
+        return rejectWithValue(data.message || 'Failed to repost');
+      }
+      
+      return { postId, ...data };
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Network error';
+      return rejectWithValue(message);
     }
   }
 );
@@ -119,38 +189,17 @@ export const bookmarkPost = createAsyncThunk(
         method: 'POST',
         headers: getAuthHeaders(),
       });
+      
       const data = await response.json();
-      if (!response.ok) return rejectWithValue(data.message || 'Failed to bookmark');
-      return { postId, bookmarked: data.bookmarked ?? true };
-    } catch {
-      return rejectWithValue('Network error');
-    }
-  }
-);
-
-export const verifyPost = createAsyncThunk(
-  'feed/verifyPost',
-  async (
-    { postId, verdict, confidence, evidence, reasoning }: {
-      postId: string;
-      verdict: string;
-      confidence: number;
-      evidence: object[];
-      reasoning: string;
-    },
-    { rejectWithValue }
-  ) => {
-    try {
-      const response = await fetch(`${API_BASE}/verification/submit`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ postId, verdict, confidence, evidence, reasoning }),
-      });
-      const data = await response.json();
-      if (!response.ok) return rejectWithValue(data.message || 'Failed to verify');
-      return { postId, tokensEarned: data.tokensEarned };
-    } catch {
-      return rejectWithValue('Network error');
+      
+      if (!response.ok) {
+        return rejectWithValue(data.message || 'Failed to bookmark');
+      }
+      
+      return { postId, ...data };
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Network error';
+      return rejectWithValue(message);
     }
   }
 );
@@ -163,49 +212,102 @@ export const deletePost = createAsyncThunk(
         method: 'DELETE',
         headers: getAuthHeaders(),
       });
-      if (!response.ok) return rejectWithValue('Failed to delete');
+      
+      if (!response.ok) {
+        const data = await response.json();
+        return rejectWithValue(data.message || 'Failed to delete post');
+      }
+      
       return postId;
-    } catch {
-      return rejectWithValue('Network error');
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Network error';
+      return rejectWithValue(message);
     }
   }
 );
 
-export const fetchUserPosts = createAsyncThunk(
-  'feed/fetchUserPosts',
-  async ({ userId, page = 1 }: { userId: string; page?: number }, { rejectWithValue }) => {
-    try {
-      const response = await fetch(`${API_BASE}/users/${userId}/posts?page=${page}`, {
-        headers: getAuthHeaders(),
-      });
-      const data = await response.json();
-      if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch');
-      return {
-        posts: data.posts || data.data || data,
-        page,
-        hasMore: data.hasMore ?? (data.posts?.length === 20),
-      };
-    } catch {
-      return rejectWithValue('Network error');
-    }
-  }
-);
-
+// Slice
 const feedSlice = createSlice({
   name: 'feed',
   initialState,
   reducers: {
-    clearFeed: (state) => {
-      state.posts = [];
-      state.page = 1;
-      state.hasMore = true;
+    setPosts: (state, action: PayloadAction<Post[]>) => {
+      state.posts = action.payload;
+    },
+    addPost: (state, action: PayloadAction<Post>) => {
+      state.posts.unshift(action.payload);
     },
     prependPost: (state, action: PayloadAction<Post>) => {
       state.posts.unshift(action.payload);
     },
+    appendPosts: (state, action: PayloadAction<Post[]>) => {
+      state.posts.push(...action.payload);
+    },
+    updatePost: (state, action: PayloadAction<Post>) => {
+      const index = state.posts.findIndex(p => p._id === action.payload._id);
+      if (index !== -1) {
+        state.posts[index] = action.payload;
+      }
+    },
+    removePost: (state, action: PayloadAction<string>) => {
+      state.posts = state.posts.filter(p => p._id !== action.payload);
+    },
+    setLoading: (state, action: PayloadAction<boolean>) => {
+      state.loading = action.payload;
+    },
+    setError: (state, action: PayloadAction<string | null>) => {
+      state.error = action.payload;
+    },
+    setFeedType: (state, action: PayloadAction<FeedType>) => {
+      state.feedType = action.payload;
+    },
+    setRefreshing: (state, action: PayloadAction<boolean>) => {
+      state.refreshing = action.payload;
+    },
+    setHasMore: (state, action: PayloadAction<boolean>) => {
+      state.hasMore = action.payload;
+    },
+    setPage: (state, action: PayloadAction<number>) => {
+      state.page = action.payload;
+    },
+    resetFeed: (state) => {
+      state.posts = [];
+      state.page = 1;
+      state.hasMore = true;
+      state.error = null;
+    },
+    // Local optimistic updates
+    addLocalVerification: (state, action: PayloadAction<{ postId: string; userId: string }>) => {
+      const post = state.posts.find(p => p._id === action.payload.postId);
+      if (post) {
+        post.verificationCount = (post.verificationCount || 0) + 1;
+        post.isVerifiedByMe = true;
+        if (!post.verifiedBy) post.verifiedBy = [];
+        post.verifiedBy.push(action.payload.userId);
+      }
+    },
+    addLocalRepost: (state, action: PayloadAction<{ postId: string; userId: string }>) => {
+      const post = state.posts.find(p => p._id === action.payload.postId);
+      if (post) {
+        post.repostCount = (post.repostCount || 0) + 1;
+        post.isRepostedByMe = true;
+        if (!post.repostedBy) post.repostedBy = [];
+        post.repostedBy.push(action.payload.userId);
+      }
+    },
+    addLocalBookmark: (state, action: PayloadAction<{ postId: string; userId: string }>) => {
+      const post = state.posts.find(p => p._id === action.payload.postId);
+      if (post) {
+        post.bookmarkCount = (post.bookmarkCount || 0) + 1;
+        post.isBookmarkedByMe = true;
+        if (!post.bookmarkedBy) post.bookmarkedBy = [];
+        post.bookmarkedBy.push(action.payload.userId);
+      }
+    },
   },
   extraReducers: (builder) => {
     builder
+      // Fetch Feed
       .addCase(fetchFeed.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -215,9 +317,7 @@ const feedSlice = createSlice({
         if (action.payload.page === 1) {
           state.posts = action.payload.posts;
         } else {
-          const ids = new Set(state.posts.map((p) => p._id));
-          const newPosts = action.payload.posts.filter((p: Post) => !ids.has(p._id));
-          state.posts = [...state.posts, ...newPosts];
+          state.posts.push(...action.payload.posts);
         }
         state.page = action.payload.page;
         state.hasMore = action.payload.hasMore;
@@ -226,8 +326,10 @@ const feedSlice = createSlice({
         state.loading = false;
         state.error = action.payload as string;
       })
+      // Refresh Feed
       .addCase(refreshFeed.pending, (state) => {
         state.refreshing = true;
+        state.error = null;
       })
       .addCase(refreshFeed.fulfilled, (state, action) => {
         state.refreshing = false;
@@ -239,55 +341,78 @@ const feedSlice = createSlice({
         state.refreshing = false;
         state.error = action.payload as string;
       })
-      .addCase(createPost.fulfilled, (state, action) => {
-        state.posts.unshift(action.payload);
-      })
-      .addCase(deletePost.fulfilled, (state, action) => {
-        state.posts = state.posts.filter((p) => p._id !== action.payload);
-      })
-      .addCase(likePost.fulfilled, (state, action) => {
-        const post = state.posts.find((p) => p._id === action.payload.postId);
-        if (post) post.isLikedByMe = action.payload.liked;
-      })
-      .addCase(repostPost.fulfilled, (state, action) => {
-        const post = state.posts.find((p) => p._id === action.payload.postId);
-        if (post) {
-          post.isRepostedByMe = action.payload.reposted;
-          post.reposts = (post.reposts || 0) + (action.payload.reposted ? 1 : -1);
-        }
-      })
-      .addCase(bookmarkPost.fulfilled, (state, action) => {
-        const post = state.posts.find((p) => p._id === action.payload.postId);
-        if (post) {
-          post.isBookmarkedByMe = action.payload.bookmarked;
-          post.bookmarks = (post.bookmarks || 0) + (action.payload.bookmarked ? 1 : -1);
-        }
-      })
-      .addCase(verifyPost.fulfilled, (state, action) => {
-        const post = state.posts.find((p) => p._id === action.payload.postId);
-        if (post) post.isVerifiedByMe = true;
-      })
-      .addCase(fetchUserPosts.pending, (state) => {
+      // Create Post
+      .addCase(createPost.pending, (state) => {
         state.loading = true;
       })
-      .addCase(fetchUserPosts.fulfilled, (state, action) => {
+      .addCase(createPost.fulfilled, (state, action) => {
         state.loading = false;
-        if (action.payload.page === 1) {
-          state.posts = action.payload.posts;
-        } else {
-          const ids = new Set(state.posts.map((p) => p._id));
-          const newPosts = action.payload.posts.filter((p: Post) => !ids.has(p._id));
-          state.posts = [...state.posts, ...newPosts];
-        }
-        state.page = action.payload.page;
-        state.hasMore = action.payload.hasMore;
+        state.posts.unshift(action.payload);
       })
-      .addCase(fetchUserPosts.rejected, (state, action) => {
+      .addCase(createPost.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
+      })
+      // Verify Post
+      .addCase(verifyPost.fulfilled, (state, action) => {
+        const post = state.posts.find(p => p._id === action.payload.postId);
+        if (post) {
+          post.verificationCount = (post.verificationCount || 0) + 1;
+          post.isVerifiedByMe = true;
+          if (action.payload.newStatus) {
+            post.factCheckStatus = action.payload.newStatus;
+          }
+        }
+      })
+      // Delete Post
+      .addCase(deletePost.fulfilled, (state, action) => {
+        state.posts = state.posts.filter(p => p._id !== action.payload);
+      })
+      // Like Post
+      .addCase(likePost.fulfilled, (state, action) => {
+        const post = state.posts.find(p => p._id === action.payload.postId);
+        if (post) {
+          post.isLikedByMe = !post.isLikedByMe;
+        }
+      })
+      // Repost
+      .addCase(repostPost.fulfilled, (state, action) => {
+        const post = state.posts.find(p => p._id === action.payload.postId);
+        if (post) {
+          post.repostCount = (post.repostCount || 0) + 1;
+          post.isRepostedByMe = true;
+        }
+      })
+      // Bookmark
+      .addCase(bookmarkPost.fulfilled, (state, action) => {
+        const post = state.posts.find(p => p._id === action.payload.postId);
+        if (post) {
+          post.bookmarkCount = (post.bookmarkCount || 0) + 1;
+          post.isBookmarkedByMe = !post.isBookmarkedByMe;
+        }
       });
   },
 });
 
-export const { clearFeed, prependPost } = feedSlice.actions;
+// Export ALL actions
+export const {
+  setPosts,
+  addPost,
+  prependPost,
+  appendPosts,
+  updatePost,
+  removePost,
+  setLoading,
+  setError,
+  setFeedType,
+  setRefreshing,
+  setHasMore,
+  setPage,
+  resetFeed,
+  addLocalVerification,
+  addLocalRepost,
+  addLocalBookmark,
+} = feedSlice.actions;
+
+// Export reducer
 export default feedSlice.reducer;
