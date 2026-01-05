@@ -4,7 +4,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAppDispatch, useAppSelector } from '../hooks/useRedux';
 import { fetchFeed, resetFeed } from '../store/slices/feedSlice';
-import Layout from '../components/Layout/Layout';
 import CreatePost from '../components/Post/CreatePost';
 import PostCard from '../components/Post/PostCard';
 import type { Post } from '../types';
@@ -160,14 +159,8 @@ const Home: React.FC = () => {
     }
   };
 
-  // Handle navigation
-  const handleNavigate = (page: string) => {
-    console.log('Navigate to:', page);
-    // Add your navigation logic here (React Router, etc.)
-  };
-
   return (
-    <Layout currentPage="home" onNavigate={handleNavigate}>
+    <>
       {/* Header with Tabs */}
       <div style={styles.header}>
         <div style={styles.headerTop}>
@@ -216,7 +209,6 @@ const Home: React.FC = () => {
       {isAuthenticated && (
         <div style={styles.createPostSection}>
           <CreatePost 
-            
             onPost={() => dispatch(fetchFeed(1))}
           />
         </div>
@@ -289,7 +281,6 @@ const Home: React.FC = () => {
           <PostCard
             key={post._id}
             post={post}
-            
             onVerify={handleVerify}
             onRepost={handleRepost}
             onBookmark={handleBookmark}
@@ -323,7 +314,7 @@ const Home: React.FC = () => {
         <span>↑</span> New posts available
       </button>
       */}
-    </Layout>
+    </>
   );
 };
 
